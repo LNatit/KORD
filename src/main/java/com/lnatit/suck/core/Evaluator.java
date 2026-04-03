@@ -52,24 +52,27 @@ public interface Evaluator
 
         // Hardware input
         if (!isSameKey(subject, opponent)) {
-            builder.withDebugTag("hardware_mismatch");
+            // hardware_mismatch
+            builder.withDebugTag("k_hm");
             return builder.build();
         }
 
         // Context routing
         if (!isContextOverlapping(subject, opponent)) {
-            builder.withDebugTag("context_routed");
+            // context_routed
+            builder.withDebugTag("c_cr");
             return builder.build();
         }
 
         // User override
         ConflictResult override = getUserOverride(subject, opponent);
-        // TODO add debug tag
+        // TODO add debug tag user_override (u_*o), distinguish builtin(b) creator(c) user(u) player(p)
         if (override != null) {return override;}
 
         // State mutex
         if (isStateMutex(subject, opponent)) {
-            builder.withDebugTag("state_mutex");
+            // state_mutex
+            builder.withDebugTag("s_sm");
             return builder.build();
         }
 
@@ -83,7 +86,9 @@ public interface Evaluator
             // Shared intent
             if (Intent.hasShared(((KeySemantic.Advanced) subjectSemantic).intents(),
                                  ((KeySemantic.Advanced) opponentSemantic).intents())) {
-                builder.withDebugTag("intent_shared");
+
+                // intent_shared
+                builder.withDebugTag("i_is");
                 return builder.build();
             }
         }
@@ -141,10 +146,11 @@ public interface Evaluator
             KeySemantic opponentSemantic,
             ConflictResult.Builder builder
     ) {
+        // Hijack eval depends on other contexts, so we don't use matrix indexing...
         HijackMode subjectHijack = subjectSemantic.hijackMode();
         HijackMode opponentHijack = opponentSemantic.hijackMode();
 
-        if (subjectHijack)
+
 
 
 

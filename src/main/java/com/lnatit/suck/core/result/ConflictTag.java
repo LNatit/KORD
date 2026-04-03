@@ -2,7 +2,7 @@ package com.lnatit.suck.core.result;
 
 public interface ConflictTag
 {
-    String id();
+    String shortCode();
 
     default boolean isDiagnostic() {
         return false;
@@ -12,15 +12,15 @@ public interface ConflictTag
         return new Pair(this, severity);
     }
 
-    static ConflictTag debug(String id) {
-        return new Debug(id);
+    static ConflictTag debug(String shortCode) {
+        return new Debug(shortCode);
     }
 
-    static ConflictTag simple(String id) {
-        return new Simple(id);
+    static ConflictTag simple(String shortCode) {
+        return new Simple(shortCode);
     }
 
-    record Debug(String id) implements ConflictTag
+    record Debug(String shortCode) implements ConflictTag
     {
         @Override
         public boolean isDiagnostic() {
@@ -28,7 +28,7 @@ public interface ConflictTag
         }
     }
 
-    record Simple(String id) implements ConflictTag
+    record Simple(String shortCode) implements ConflictTag
     {}
 
 

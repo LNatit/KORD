@@ -11,11 +11,6 @@ public record ConflictResult(Severity severity, List<ConflictTag> tags)
         tags = List.copyOf(tags);
     }
 
-    // TODO give some params
-    public static ConflictResult intentShared() {
-        return SAFE;
-    }
-
     public static Builder builder() {
         return new Builder();
     }
@@ -32,8 +27,8 @@ public record ConflictResult(Severity severity, List<ConflictTag> tags)
             return this;
         }
 
-        public Builder withDebugTag(String id) {
-            return withTag(ConflictTag.debug(id));
+        public Builder withDebugTag(String shortCode) {
+            return withTag(ConflictTag.debug(shortCode));
         }
 
         public Builder withTag(ConflictTag tag, Severity tagSeverity) {
