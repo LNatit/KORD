@@ -20,7 +20,7 @@ public enum KeyContext implements StringRepresentable
 
     KeyContext(UnaryOperator<IKeyConflictContext> operator) {this.operator = operator;}
 
-    public IKeyConflictContext tranform(IKeyConflictContext context) {
+    public IKeyConflictContext transform(IKeyConflictContext context) {
         return this.operator.apply(context);
     }
 
