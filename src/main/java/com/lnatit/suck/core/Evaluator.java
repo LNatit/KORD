@@ -4,6 +4,8 @@ import com.lnatit.suck.core.result.ConflictResult;
 import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
+import javax.annotation.Nullable;
+
 public interface Evaluator
 {
     /**
@@ -46,23 +48,29 @@ public interface Evaluator
      * @see KeyMapping#same(KeyMapping)
      */
     static ConflictResult eval(KeyMapping subject, KeyMapping opponent) {
+        ConflictResult.Builder builder = ConflictResult.builder();
+
         // Hardware input
         if (!isSameKey(subject, opponent)) {
-            return ConflictResult.SAFE;
+            builder.withDebugTag("hardware_mismatch");
+            return builder.build();
         }
 
         // Context routing
         if (!isContextOverlapping(subject, opponent)) {
-            return ConflictResult.SAFE;
+            builder.withDebugTag("context_routed");
+            return builder.build();
         }
 
         // User override
         ConflictResult override = getUserOverride(subject, opponent);
+        // TODO add debug tag
         if (override != null) {return override;}
 
         // State mutex
         if (isStateMutex(subject, opponent)) {
-            return ConflictResult.SAFE;
+            builder.withDebugTag("state_mutex");
+            return builder.build();
         }
 
         KeySemantic subjectSemantic = ((SemanticalKey) subject).chord$getSemantic();
@@ -75,24 +83,23 @@ public interface Evaluator
             // Shared intent
             if (Intent.hasShared(((KeySemantic.Advanced) subjectSemantic).intents(),
                                  ((KeySemantic.Advanced) opponentSemantic).intents())) {
-                return ConflictResult.intentShared();
+                builder.withDebugTag("intent_shared");
+                return builder.build();
             }
         }
 
-        ConflictResult.Builder builder = new ConflictResult.Builder();
-
-        builder = evaluateHijack(subjectSemantic, opponentSemantic, builder);
+        evaluateHijack(subjectSemantic, opponentSemantic, builder);
 
         if (advanced) {
             assert subjectSemantic instanceof KeySemantic.Advanced;
             assert opponentSemantic instanceof KeySemantic.Advanced;
-            builder = evaluateModality((KeySemantic.Advanced) subjectSemantic,
-                                       (KeySemantic.Advanced) opponentSemantic,
-                                       builder);
+            evaluateModality((KeySemantic.Advanced) subjectSemantic,
+                             (KeySemantic.Advanced) opponentSemantic,
+                             builder);
 
-            builder = evaluateMatrix((KeySemantic.Advanced) subjectSemantic,
-                                     (KeySemantic.Advanced) opponentSemantic,
-                                     builder);
+            evaluateMatrix((KeySemantic.Advanced) subjectSemantic,
+                           (KeySemantic.Advanced) opponentSemantic,
+                           builder);
         }
 
         return builder.build();
@@ -111,6 +118,7 @@ public interface Evaluator
         return subjectCtx.conflicts(opponentCtx) || opponentCtx.conflicts(subjectCtx);
     }
 
+    @Nullable
     static ConflictResult getUserOverride(KeyMapping subject, KeyMapping opponent) {
         // TODO null represents no override
         return null;
@@ -128,31 +136,42 @@ public interface Evaluator
         return advanced && same;
     }
 
-    static ConflictResult.Builder evaluateHijack(
+    static void evaluateHijack(
             KeySemantic subjectSemantic,
             KeySemantic opponentSemantic,
             ConflictResult.Builder builder
     ) {
-        HijackMode subjectHijack = opponentSemantic.hijackMode();
+        HijackMode subjectHijack = subjectSemantic.hijackMode();
         HijackMode opponentHijack = opponentSemantic.hijackMode();
 
+        if (subjectHijack)
 
-        return builder;
+
+
+
     }
 
-    static ConflictResult.Builder evaluateModality(
+    static void evaluateModality(
             KeySemantic.Advanced subjectSemantic,
             KeySemantic.Advanced opponentSemantic,
             ConflictResult.Builder builder
     ) {
-        return builder;
+        builder.withPair(Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality()));
     }
 
-    static ConflictResult.Builder evaluateMatrix(
+    static void evaluateMatrix(
             KeySemantic.Advanced subjectSemantic,
             KeySemantic.Advanced opponentSemantic,
             ConflictResult.Builder builder
     ) {
-        return builder;
+        assert subjectSemantic.getClass() == opponentSemantic.getClass();
+        if (subjectSemantic instanceof KeySemantic.InGame) {
+            builder.withPair(ActionRoot.InGame.MATRIX.get((ActionRoot.InGame) subjectSemantic.actionRoot(),
+                                                          (ActionRoot.InGame) opponentSemantic.actionRoot()));
+        }
+        else if (subjectSemantic instanceof KeySemantic.InGui) {
+            builder.withPair(ActionRoot.InGui.MATRIX.get((ActionRoot.InGui) subjectSemantic.actionRoot(),
+                                                         (ActionRoot.InGui) opponentSemantic.actionRoot()));
+        }
     }
 }
