@@ -1,16 +1,15 @@
 package com.lnatit.suck.core;
 
+import net.neoforged.neoforge.client.extensions.IKeyMappingExtension;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
-public interface SemanticalKey
+public interface SemanticalKey extends IKeyMappingExtension
 {
-    IKeyConflictContext getKeyConflictContext();
+    void chord$setSemantic(KeySemantic semantic);
 
-    void setSemantic(KeySemantic semantic);
-
-    KeySemantic getSemantic();
+    KeySemantic chord$getSemantic();
 
     default IKeyConflictContext semanticalConflictCtx() {
-        return getSemantic().context().transform(getKeyConflictContext());
+        return chord$getSemantic().context().transform(getKeyConflictContext());
     }
 }

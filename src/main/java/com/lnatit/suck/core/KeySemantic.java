@@ -4,7 +4,8 @@ import java.util.List;
 
 public interface KeySemantic
 {
-    KeySemantic DEFAULT = new KeySemantic() {
+    KeySemantic DEFAULT = new KeySemantic()
+    {
         @Override
         public KeyContext context() {
             return KeyContext.AS_IS;
@@ -40,34 +41,18 @@ public interface KeySemantic
                   HijackMode hijackMode) implements KeySemantic
     {}
 
-//    record Wrapper(IKeyConflictContext conflictContext, Simple sematic) implements KeySemantic
-//    {
-//        @Override
-//        public KeyContext context() {
-//            return sematic.context();
-//        }
-//
-//        @Override
-//        public StateSet states() {
-//            return sematic.states();
-//        }
-//
-//        @Override
-//        public Modality modality() {
-//            return sematic.modality();
-//        }
-//
-//        @Override
-//        public HijackMode hijackMode() {
-//            return sematic.hijackMode();
-//        }
-//    }
+    interface Advanced extends KeySemantic
+    {
+        List<String> intents();
+
+        ActionRoot actionRoot();
+    }
 
     record InGame(StateSet states,
                   List<String> intents,
                   Modality modality,
                   HijackMode hijackMode,
-                  ActionRoot.InGame actionRoot) implements KeySemantic
+                  ActionRoot.InGame actionRoot) implements Advanced
     {
         @Override
         public KeyContext context() {
@@ -79,7 +64,7 @@ public interface KeySemantic
                  List<String> intents,
                  Modality modality,
                  HijackMode hijackMode,
-                 ActionRoot.InGui actionRoot) implements KeySemantic
+                 ActionRoot.InGui actionRoot) implements Advanced
     {
         @Override
         public KeyContext context() {
