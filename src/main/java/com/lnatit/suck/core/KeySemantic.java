@@ -22,9 +22,11 @@ public interface KeySemantic
         }
 
         @Override
-        public HijackMode hijackMode() {
-            return HijackMode.NONE;
+        public boolean intercept() {
+            return false;
         }
+
+        public RedirectMode redirectMode() {return RedirectMode.NONE;}
     };
 
     KeyContext context();
@@ -33,12 +35,15 @@ public interface KeySemantic
 
     Modality modality();
 
-    HijackMode hijackMode();
+    boolean intercept();
+
+    RedirectMode redirectMode();
 
     record Simple(KeyContext context,
                   StateSet states,
                   Modality modality,
-                  HijackMode hijackMode) implements KeySemantic
+                  boolean intercept,
+                  RedirectMode redirectMode) implements KeySemantic
     {}
 
     interface Advanced extends KeySemantic
@@ -51,7 +56,8 @@ public interface KeySemantic
     record InGame(StateSet states,
                   List<String> intents,
                   Modality modality,
-                  HijackMode hijackMode,
+                  boolean intercept,
+                  RedirectMode redirectMode,
                   ActionRoot.InGame actionRoot) implements Advanced
     {
         @Override
@@ -63,7 +69,8 @@ public interface KeySemantic
     record InGui(StateSet states,
                  List<String> intents,
                  Modality modality,
-                 HijackMode hijackMode,
+                 boolean intercept,
+                 RedirectMode redirectMode,
                  ActionRoot.InGui actionRoot) implements Advanced
     {
         @Override

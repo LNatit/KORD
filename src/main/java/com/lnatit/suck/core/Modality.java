@@ -74,6 +74,7 @@ import com.lnatit.suck.core.util.SymmetricEnumMatrix;
  * </table>
  */
 public enum Modality {
+    // We combine HOLD with RELEASE, cuz hardly you see a pure RELEASE key
     PRESS, HOLD, TOGGLE, CYCLE;
 
     public static final ConflictTag M_OM = ConflictTag.simple("m_om");
