@@ -1,9 +1,6 @@
 package com.lnatit.suck.core;
 
-import com.lnatit.suck.core.result.ConflictCollector;
-import com.lnatit.suck.core.result.ConflictResult;
-import com.lnatit.suck.core.result.ConflictTag;
-import com.lnatit.suck.core.result.Severity;
+import com.lnatit.suck.core.result.*;
 import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
@@ -51,8 +48,9 @@ public interface Evaluator {
         KeySemantic subjectSemantic = ((SemanticalKey) subject).chord$getSemantic();
         KeySemantic opponentSemantic = ((SemanticalKey) opponent).chord$getSemantic();
 
+        // Input interception
         evaluateIntercept(subjectSemantic, opponentSemantic, collector);
-        if (collector.isBlocked()) {
+        if (collector.finished()) {
             return collector.toResult();
         }
         boolean advanced = canApplyAdvancedLogic(subjectSemantic, opponentSemantic);
@@ -60,15 +58,16 @@ public interface Evaluator {
         if (advanced) {
             assert subjectSemantic instanceof KeySemantic.Advanced;
             assert opponentSemantic instanceof KeySemantic.Advanced;
-            // Shared intent
+
+            // Shared intent (use T instead of I to avoid confusion with intercept)
             evaluateIntent((KeySemantic.Advanced) subjectSemantic, (KeySemantic.Advanced) opponentSemantic, collector);
-            if (collector.isBlocked()) {
+            if (collector.finished()) {
                 return collector.toResult();
             }
 
             evaluateModality((KeySemantic.Advanced) subjectSemantic, (KeySemantic.Advanced) opponentSemantic, collector);
 
-            evaluateMatrix((KeySemantic.Advanced) subjectSemantic, (KeySemantic.Advanced) opponentSemantic, collector);
+            evaluateCategory((KeySemantic.Advanced) subjectSemantic, (KeySemantic.Advanced) opponentSemantic, collector);
         }
 
         return collector.toResult();
@@ -101,56 +100,20 @@ public interface Evaluator {
         boolean si = subjectSemantic.intercept();
         boolean oi = opponentSemantic.intercept();
 
-        if (si == HijackMode.PASSIVE && oi == HijackMode.PASSIVE) {
-            // concurrent_input
-            builder.withDebugTag("h_ci");
+        if (si && oi) {
+            // race_condition
+            builder.withRisk(new ConflictRisk.RaceCondition());
             return;
         }
 
-        boolean sf = si == HijackMode.CONSUME;
-        boolean of = oi == HijackMode.CONSUME;
-        if (sf || of) {
-            if (sf && of) {
-                // risk_condition
-                builder.withTag(ConflictTag.simple("h_rc"), Severity.SEVERE);
-            } else {
-                // input_interception
-                builder.withTag(ConflictTag.simple("h_ii"), Severity.SEVERE);
-            }
-            builder.blockPipeline();
+        if (si || oi) {
+            // intercept_input
+            builder.withRisk(new ConflictRisk.InterceptInput(si ? subjectSemantic : opponentSemantic));
             return;
         }
 
-        sf = si == HijackMode.REDIRECT_MOUSE;
-        of = oi == HijackMode.REDIRECT_MOUSE;
-        if (sf || of) {
-            if (sf && of) {
-                // focus_collision
-                builder.withTag(ConflictTag.simple("h_fc"), Severity.SEVERE);
-            } else {
-                if (sf) {
-                    if (oi == HijackMode.REDIRECT_KEY) {
-                        // input_block
-                        builder.withTag(ConflictTag.simple("h_ib"), Severity.SEVERE);
-                    } else {
-                        assert oi == HijackMode.PASSIVE;
-                        // focus_interrupt
-                        builder.withTag(ConflictTag.simple("h_fi"), Severity.WARNING);
-                    }
-                }
-            }
-        }
-
-
-//        if (sm == HijackMode.REDIRECT_MOUSE && om == HijackMode.REDIRECT_MOUSE) {
-//            builder.blockPipeline();
-//        }
-//
-//        if (sm == HijackMode.REDIRECT_MOUSE && om == HijackMode.REDIRECT_KEY) {
-//            //
-//        }
-
-
+        // concurrent_input
+        builder.withDebugTag("h_ci");
     }
 
     static void evaluateRedirect(KeySemantic subjectSemantic, KeySemantic opponentSemantic, ConflictCollector builder) {
@@ -184,7 +147,7 @@ public interface Evaluator {
         builder.withPair(Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality()));
     }
 
-    static void evaluateMatrix(KeySemantic.Advanced subjectSemantic, KeySemantic.Advanced opponentSemantic, ConflictCollector builder) {
+    static void evaluateCategory(KeySemantic.Advanced subjectSemantic, KeySemantic.Advanced opponentSemantic, ConflictCollector builder) {
         assert subjectSemantic.getClass() == opponentSemantic.getClass();
         if (subjectSemantic instanceof KeySemantic.InGame) {
             builder.withPair(ActionRoot.InGame.MATRIX.get((ActionRoot.InGame) subjectSemantic.actionRoot(), (ActionRoot.InGame) opponentSemantic.actionRoot()));
