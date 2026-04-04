@@ -72,15 +72,12 @@ public interface Evaluator {
                 return collector.toResult();
             }
 
-            collector.resolvePendingRisks();
-
             evaluateModality((KeySemantic.Advanced) subjectSemantic, (KeySemantic.Advanced) opponentSemantic, collector);
 
             evaluateCategory((KeySemantic.Advanced) subjectSemantic, (KeySemantic.Advanced) opponentSemantic, collector);
-        } else {
-            collector.resolvePendingRisks();
         }
 
+        collector.resolvePendingRisks();
         return collector.toResult();
     }
 
@@ -171,11 +168,30 @@ public interface Evaluator {
     }
 
     static void evaluateCategory(KeySemantic.Advanced subjectSemantic, KeySemantic.Advanced opponentSemantic, ConflictCollector collector) {
-        assert subjectSemantic.getClass() == opponentSemantic.getClass();
-        if (subjectSemantic instanceof KeySemantic.InGame) {
-            collector.withPair(ActionRoot.InGame.MATRIX.get((ActionRoot.InGame) subjectSemantic.actionRoot(), (ActionRoot.InGame) opponentSemantic.actionRoot()));
-        } else if (subjectSemantic instanceof KeySemantic.InGui) {
-            collector.withPair(ActionRoot.InGui.MATRIX.get((ActionRoot.InGui) subjectSemantic.actionRoot(), (ActionRoot.InGui) opponentSemantic.actionRoot()));
+        ConflictRisk.RaceCondition rc = collector.getRisk(ConflictRisk.RaceCondition.class);
+        ConflictRisk.IntentShare is = collector.getRisk(ConflictRisk.IntentShare.class);
+        if (rc != null && is != null) {
+            // the only possible downgrade, although it's a WARNING...
+            collector.withTag(rc.toTag());
+            collector.withTag(is.toTag());
+
+            // takes effect in escalation, so we remove it
+            collector.remove(ConflictRisk.RaceCondition.class);
+            collector.remove(ConflictRisk.IntentShare.class);
+
+            // implement_contend
+            collector.withTag(new ConflictTag.Simple("a_ic"), Severity.WARNING);
+            return;
         }
+
+        assert subjectSemantic.getClass() == opponentSemantic.getClass();
+        ConflictTag.Pair pair;
+        switch (subjectSemantic) {
+            case KeySemantic.InGame g ->
+                    pair = ActionRoot.InGame.MATRIX.get((ActionRoot.InGame) subjectSemantic.actionRoot(), (ActionRoot.InGame) opponentSemantic.actionRoot());
+            case KeySemantic.InGui g ->
+                    pair = ActionRoot.InGui.MATRIX.get((ActionRoot.InGui) subjectSemantic.actionRoot(), (ActionRoot.InGui) opponentSemantic.actionRoot());
+        }
+        collector.withPair(pair);
     }
 }

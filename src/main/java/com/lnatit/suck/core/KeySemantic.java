@@ -46,7 +46,7 @@ public interface KeySemantic
                   RedirectMode redirectMode) implements KeySemantic
     {}
 
-    interface Advanced extends KeySemantic
+    sealed interface Advanced extends KeySemantic permits InGame, InGui
     {
         List<String> intents();
 

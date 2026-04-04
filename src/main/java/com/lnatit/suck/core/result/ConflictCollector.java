@@ -47,9 +47,19 @@ public class ConflictCollector {
         return null;
     }
 
+    public <T extends ConflictRisk> void remove(Class<T> type) {
+        risks.removeIf(type::isInstance);
+    }
+
     public ConflictCollector resolvePendingRisks() {
+        boolean escalate = false;
         for (ConflictRisk risk : risks) {
             withTag(risk.toTag());
+            // Escalate severity
+            escalate = !escalate;
+            if (severity != Severity.SEVERE && escalate) {
+                severity = Severity.values()[severity.ordinal() + 1];
+            }
         }
         return this;
     }
