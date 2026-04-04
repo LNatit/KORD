@@ -1,5 +1,6 @@
 package com.lnatit.suck.core;
 
+import com.lnatit.suck.core.result.ConflictInfo;
 import com.lnatit.suck.core.result.ConflictTag;
 import com.lnatit.suck.core.result.Severity;
 import com.lnatit.suck.core.util.SymmetricEnumMatrix;
@@ -83,14 +84,14 @@ public enum Modality {
     public static final ConflictTag M_SL = ConflictTag.simple("m_sl");
     public static final ConflictTag M_SE = ConflictTag.simple("m_se");
 
-    public static final SymmetricEnumMatrix<Modality, ConflictTag.Pair> MATRIX = new SymmetricEnumMatrix<>(Modality.class, M_OM.withSeverity(Severity.SAFE));
+    public static final SymmetricEnumMatrix<Modality, ConflictTag.Pair> MATRIX = new SymmetricEnumMatrix<>(Modality.class, new ConflictTag.Pair(M_OM, Severity.SAFE));
 
     static {
-        MATRIX.putAll(HOLD, M_TM.withSeverity(Severity.INFO), PRESS, TOGGLE);
-        MATRIX.put(PRESS, TOGGLE, M_RS.withSeverity(Severity.INFO));
-        MATRIX.put(HOLD, CYCLE, M_TM.withSeverity(Severity.WARNING));
-        MATRIX.put(PRESS, CYCLE, M_RS.withSeverity(Severity.WARNING));
-        MATRIX.put(TOGGLE, TOGGLE, M_SL.withSeverity(Severity.WARNING));
-        MATRIX.putAll(CYCLE, M_SE.withSeverity(Severity.SEVERE), TOGGLE, CYCLE);
+        MATRIX.putAll(HOLD, new ConflictTag.Pair(M_TM, Severity.INFO), PRESS, TOGGLE);
+        MATRIX.put(PRESS, TOGGLE, new ConflictTag.Pair(M_RS, Severity.INFO));
+        MATRIX.put(HOLD, CYCLE, new ConflictTag.Pair(M_TM, Severity.WARNING));
+        MATRIX.put(PRESS, CYCLE, new ConflictTag.Pair(M_RS, Severity.WARNING));
+        MATRIX.put(TOGGLE, TOGGLE, new ConflictTag.Pair(M_SL, Severity.WARNING));
+        MATRIX.putAll(CYCLE, new ConflictTag.Pair(M_SE, Severity.SEVERE), TOGGLE, CYCLE);
     }
 }

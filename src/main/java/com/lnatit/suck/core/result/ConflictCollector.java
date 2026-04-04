@@ -47,7 +47,14 @@ public class ConflictCollector {
         return null;
     }
 
-    public void blockPipeline() {
+    public ConflictCollector resolvePendingRisks() {
+        for (ConflictRisk risk : risks) {
+            withTag(risk.toTag());
+        }
+        return this;
+    }
+
+    public void setFinished() {
         this.finished = true;
     }
 
@@ -56,10 +63,6 @@ public class ConflictCollector {
     }
 
     public ConflictResult toResult() {
-        if (!risks.isEmpty()) {
-            Suck.LOGGER.warn("Risks are not all handled! Risks: {}", risks);
-        }
-
         if (severity == Severity.SAFE && tags.isEmpty()) {
             return ConflictResult.SAFE;
         }

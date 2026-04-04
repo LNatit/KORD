@@ -1,18 +1,20 @@
 package com.lnatit.suck.core.result;
 
-import com.lnatit.suck.core.KeySemantic;
-
-public interface ConflictRisk {
+public non-sealed interface ConflictRisk extends ConflictInfo {
     ConflictTag toTag();
 
-    record StateSubset(KeySemantic parent, KeySemantic subset) implements ConflictRisk {
+    default void attachTo(ConflictCollector collector) {
+        collector.withRisk(this);
+    }
+
+    record StateSubset(boolean subjectIsSubset) implements ConflictRisk {
         @Override
         public ConflictTag toTag() {
-            return new ConflictTag.Simple("s_ss");
+            return ConflictTag.debug("s_ss");
         }
     }
 
-    record InterceptInput(KeySemantic interceptor) implements ConflictRisk {
+    record InterceptInput(boolean subjectIsInterceptor) implements ConflictRisk {
         @Override
         public ConflictTag toTag() {
             return new ConflictTag.Simple("i_ii");
@@ -26,7 +28,7 @@ public interface ConflictRisk {
         }
     }
 
-    record IntentShare(boolean strict) implements ConflictRisk {
+    record IntentShare(boolean identical) implements ConflictRisk {
         @Override
         public ConflictTag toTag() {
             return new ConflictTag.Simple("t_is");

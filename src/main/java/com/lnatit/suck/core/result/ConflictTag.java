@@ -8,10 +8,6 @@ public interface ConflictTag
         return false;
     }
 
-    default Pair withSeverity(Severity severity) {
-        return new Pair(this, severity);
-    }
-
     static ConflictTag debug(String shortCode) {
         return new Debug(shortCode);
     }
@@ -32,6 +28,17 @@ public interface ConflictTag
     {}
 
 
-    record Pair(ConflictTag tag, Severity severity)
-    {}
+    record Pair(ConflictTag tag, Severity severity, boolean meltDown) implements ConflictInfo {
+        public Pair(ConflictTag tag, Severity severity) {
+            this(tag, severity, false);
+        }
+
+        @Override
+        public void attachTo(ConflictCollector collector) {
+            collector.withTag(tag, severity);
+            if (meltDown) {
+                collector.setFinished();
+            }
+        }
+    }
 }

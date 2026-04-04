@@ -5,6 +5,7 @@ import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 public interface Evaluator {
     /**
@@ -53,21 +54,31 @@ public interface Evaluator {
         if (collector.finished()) {
             return collector.toResult();
         }
-        boolean advanced = canApplyAdvancedLogic(subjectSemantic, opponentSemantic);
 
+        // Redirect mode
+        evaluateRedirect(subjectSemantic, opponentSemantic, collector);
+        if (collector.finished()) {
+            return collector.toResult();
+        }
+
+        boolean advanced = canApplyAdvancedLogic(subjectSemantic, opponentSemantic);
         if (advanced) {
             assert subjectSemantic instanceof KeySemantic.Advanced;
             assert opponentSemantic instanceof KeySemantic.Advanced;
 
-            // Shared intent (use T instead of I to avoid confusion with intercept)
+            // Player intent (use T instead of I to avoid confusion with intercept)
             evaluateIntent((KeySemantic.Advanced) subjectSemantic, (KeySemantic.Advanced) opponentSemantic, collector);
             if (collector.finished()) {
                 return collector.toResult();
             }
 
+            collector.resolvePendingRisks();
+
             evaluateModality((KeySemantic.Advanced) subjectSemantic, (KeySemantic.Advanced) opponentSemantic, collector);
 
             evaluateCategory((KeySemantic.Advanced) subjectSemantic, (KeySemantic.Advanced) opponentSemantic, collector);
+        } else {
+            collector.resolvePendingRisks();
         }
 
         return collector.toResult();
@@ -95,32 +106,40 @@ public interface Evaluator {
         return StateSet.isMutex(subjectStates, opponentStates);
     }
 
-    static void evaluateIntercept(KeySemantic subjectSemantic, KeySemantic opponentSemantic, ConflictCollector builder) {
+    static void evaluateIntercept(KeySemantic subjectSemantic, KeySemantic opponentSemantic, ConflictCollector collector) {
         // Hijack eval depends on other contexts, so we don't use matrix indexing...
         boolean si = subjectSemantic.intercept();
         boolean oi = opponentSemantic.intercept();
 
         if (si && oi) {
             // race_condition
-            builder.withRisk(new ConflictRisk.RaceCondition());
+            collector.withRisk(new ConflictRisk.RaceCondition());
             return;
         }
 
         if (si || oi) {
+            // TODO check whether race condition need similar logic
+            ConflictRisk.StateSubset risk = collector.getRisk(ConflictRisk.StateSubset.class);
+            if (risk != null && risk.subjectIsSubset() == si) {
+                // partial_override
+                collector.withTag(risk.toTag());
+                collector.withTag(new ConflictTag.Simple("i_po"), Severity.INFO);
+                collector.setFinished();
+                return;
+            }
+
             // intercept_input
-            builder.withRisk(new ConflictRisk.InterceptInput(si ? subjectSemantic : opponentSemantic));
+            collector.withRisk(new ConflictRisk.InterceptInput(si));
             return;
         }
 
         // concurrent_input
-        builder.withDebugTag("h_ci");
+        collector.withDebugTag("h_ci");
     }
 
-    static void evaluateRedirect(KeySemantic subjectSemantic, KeySemantic opponentSemantic, ConflictCollector builder) {
-        RedirectMode sR = subjectSemantic.redirectMode();
-        RedirectMode oR = opponentSemantic.redirectMode();
-
-
+    static void evaluateRedirect(KeySemantic subjectSemantic, KeySemantic opponentSemantic, ConflictCollector collector) {
+        ConflictInfo info = RedirectMode.MATRIX.get(subjectSemantic.redirectMode(), opponentSemantic.redirectMode());
+        info.attachTo(collector);
     }
 
     static boolean canApplyAdvancedLogic(KeySemantic semantic1, KeySemantic semantic2) {
@@ -129,30 +148,34 @@ public interface Evaluator {
         return advanced && same;
     }
 
-    static void evaluateIntent(KeySemantic.Advanced subjectSemantic, KeySemantic.Advanced opponentSemantic, ConflictCollector builder) {
-        if (Intent.hasShared(subjectSemantic.intents(), opponentSemantic.intents())) {
-            // intent_shared
-            builder.withDebugTag("i_is");
-
-            HijackMode sm = subjectSemantic.intercept();
-            HijackMode om = opponentSemantic.intercept();
-            // Redirect needs further diagnose
-            if (!sm.isRedirect() && !om.isRedirect()) {
-                builder.blockPipeline();
+    static void evaluateIntent(KeySemantic.Advanced subjectSemantic, KeySemantic.Advanced opponentSemantic, ConflictCollector collector) {
+        List<String> sI = subjectSemantic.intents();
+        List<String> oI = opponentSemantic.intents();
+        if (Intent.hasShared(sI, oI)) {
+            ConflictRisk.InterceptInput risk = collector.getRisk(ConflictRisk.InterceptInput.class);
+            if (risk != null) {
+                // intent_shared
+                collector.withTag(risk.toTag());
+                collector.withTag(new ConflictTag.Simple("t_ii"), Severity.INFO);
+                collector.setFinished();
+                return;
             }
+
+            // intent_shared
+            collector.withRisk(new ConflictRisk.IntentShare(Intent.isIdentical(sI, oI)));
         }
     }
 
-    static void evaluateModality(KeySemantic.Advanced subjectSemantic, KeySemantic.Advanced opponentSemantic, ConflictCollector builder) {
-        builder.withPair(Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality()));
+    static void evaluateModality(KeySemantic.Advanced subjectSemantic, KeySemantic.Advanced opponentSemantic, ConflictCollector collector) {
+        collector.withPair(Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality()));
     }
 
-    static void evaluateCategory(KeySemantic.Advanced subjectSemantic, KeySemantic.Advanced opponentSemantic, ConflictCollector builder) {
+    static void evaluateCategory(KeySemantic.Advanced subjectSemantic, KeySemantic.Advanced opponentSemantic, ConflictCollector collector) {
         assert subjectSemantic.getClass() == opponentSemantic.getClass();
         if (subjectSemantic instanceof KeySemantic.InGame) {
-            builder.withPair(ActionRoot.InGame.MATRIX.get((ActionRoot.InGame) subjectSemantic.actionRoot(), (ActionRoot.InGame) opponentSemantic.actionRoot()));
+            collector.withPair(ActionRoot.InGame.MATRIX.get((ActionRoot.InGame) subjectSemantic.actionRoot(), (ActionRoot.InGame) opponentSemantic.actionRoot()));
         } else if (subjectSemantic instanceof KeySemantic.InGui) {
-            builder.withPair(ActionRoot.InGui.MATRIX.get((ActionRoot.InGui) subjectSemantic.actionRoot(), (ActionRoot.InGui) opponentSemantic.actionRoot()));
+            collector.withPair(ActionRoot.InGui.MATRIX.get((ActionRoot.InGui) subjectSemantic.actionRoot(), (ActionRoot.InGui) opponentSemantic.actionRoot()));
         }
     }
 }
