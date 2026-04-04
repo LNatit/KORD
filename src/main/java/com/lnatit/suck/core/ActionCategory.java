@@ -3,9 +3,9 @@ package com.lnatit.suck.core;
 import com.lnatit.suck.core.result.ConflictTag;
 import com.lnatit.suck.core.util.SymmetricEnumMatrix;
 
-public interface ActionRoot
+public interface ActionCategory
 {
-    enum InGame implements ActionRoot
+    enum InGame implements ActionCategory
     {
         MOVEMENT,
         CORE_ACT,
@@ -20,7 +20,7 @@ public interface ActionRoot
 
     }
 
-    enum InGui implements ActionRoot
+    enum InGui implements ActionCategory
     {
 
         A;

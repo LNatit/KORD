@@ -32,7 +32,8 @@ public class SymmetricEnumMatrix<E extends Enum<E>, V> {
     /**
      * 批量设置相同行/列的快捷方法 (比如：任何动作遇上 GUI 都是 WARNING)
      */
-    public void putAll(E e1, V value, E... others) {
+    @SafeVarargs
+    public final void putAll(E e1, V value, E... others) {
         for (E e2 : others) {
             put(e1, e2, value);
         }

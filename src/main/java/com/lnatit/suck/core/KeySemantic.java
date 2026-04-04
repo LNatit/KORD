@@ -50,7 +50,7 @@ public interface KeySemantic
     {
         List<String> intents();
 
-        ActionRoot actionRoot();
+        ActionCategory actionCategory();
     }
 
     record InGame(StateSet states,
@@ -58,7 +58,7 @@ public interface KeySemantic
                   Modality modality,
                   boolean intercept,
                   RedirectMode redirectMode,
-                  ActionRoot.InGame actionRoot) implements Advanced
+                  ActionCategory.InGame actionCategory) implements Advanced
     {
         @Override
         public KeyContext context() {
@@ -71,7 +71,7 @@ public interface KeySemantic
                  Modality modality,
                  boolean intercept,
                  RedirectMode redirectMode,
-                 ActionRoot.InGui actionRoot) implements Advanced
+                 ActionCategory.InGui actionCategory) implements Advanced
     {
         @Override
         public KeyContext context() {

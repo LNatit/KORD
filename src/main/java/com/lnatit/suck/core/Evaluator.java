@@ -4,8 +4,8 @@ import com.lnatit.suck.core.result.*;
 import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
-import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Optional;
 
 public interface Evaluator {
     /**
@@ -32,10 +32,10 @@ public interface Evaluator {
         }
 
         // User override
-        ConflictResult override = getUserOverride(subject, opponent);
+        Optional<ConflictResult> override = getUserOverride(subject, opponent);
         // TODO add debug tag user_override (u_*o), distinguish builtin(b) creator(c) user(u) player(p)
-        if (override != null) {
-            return override;
+        if (override.isPresent()) {
+            return override.get();
         }
 
         // State mutex
@@ -91,10 +91,9 @@ public interface Evaluator {
         return subjectCtx.conflicts(opponentCtx) || opponentCtx.conflicts(subjectCtx);
     }
 
-    @Nullable
-    static ConflictResult getUserOverride(KeyMapping subject, KeyMapping opponent) {
-        // TODO null represents no override
-        return null;
+    static Optional<ConflictResult> getUserOverride(KeyMapping subject, KeyMapping opponent) {
+        // TODO to impl
+        return Optional.empty();
     }
 
     static boolean isStateMutex(KeyMapping subject, KeyMapping opponent) {
@@ -187,10 +186,10 @@ public interface Evaluator {
         assert subjectSemantic.getClass() == opponentSemantic.getClass();
         ConflictTag.Pair pair;
         switch (subjectSemantic) {
-            case KeySemantic.InGame g ->
-                    pair = ActionRoot.InGame.MATRIX.get((ActionRoot.InGame) subjectSemantic.actionRoot(), (ActionRoot.InGame) opponentSemantic.actionRoot());
-            case KeySemantic.InGui g ->
-                    pair = ActionRoot.InGui.MATRIX.get((ActionRoot.InGui) subjectSemantic.actionRoot(), (ActionRoot.InGui) opponentSemantic.actionRoot());
+            case KeySemantic.InGame ignored ->
+                    pair = ActionCategory.InGame.MATRIX.get((ActionCategory.InGame) subjectSemantic.actionCategory(), (ActionCategory.InGame) opponentSemantic.actionCategory());
+            case KeySemantic.InGui ignored ->
+                    pair = ActionCategory.InGui.MATRIX.get((ActionCategory.InGui) subjectSemantic.actionCategory(), (ActionCategory.InGui) opponentSemantic.actionCategory());
         }
         collector.withPair(pair);
     }

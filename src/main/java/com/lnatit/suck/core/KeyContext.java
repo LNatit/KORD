@@ -4,6 +4,7 @@ import net.minecraft.util.StringRepresentable;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 import net.neoforged.neoforge.client.settings.KeyConflictContext;
 
+import java.util.Locale;
 import java.util.function.UnaryOperator;
 
 public enum KeyContext implements StringRepresentable
@@ -15,7 +16,7 @@ public enum KeyContext implements StringRepresentable
 
     //Codecs
 
-    private final String name = this.name().toLowerCase();
+    private final String name = this.name().toLowerCase(Locale.ROOT);
     private final UnaryOperator<IKeyConflictContext> operator;
 
     KeyContext(UnaryOperator<IKeyConflictContext> operator) {this.operator = operator;}
