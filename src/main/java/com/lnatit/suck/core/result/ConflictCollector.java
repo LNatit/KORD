@@ -28,6 +28,7 @@ public class ConflictCollector {
         return withTag(tag);
     }
 
+    @Deprecated
     public ConflictCollector withPair(ConflictTag.Pair pair) {
         return withTag(pair.tag(), pair.severity());
     }

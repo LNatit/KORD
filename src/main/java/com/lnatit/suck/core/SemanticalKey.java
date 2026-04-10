@@ -5,11 +5,13 @@ import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
 public interface SemanticalKey extends IKeyMappingExtension
 {
-    void chord$setSemantic(KeySemantic semantic);
+    void chord$addSemantic(KeyContext context, KeySemantic semantic);
 
-    KeySemantic chord$getSemantic();
+    KeySemantic chord$getSemantic(KeyContext context);
 
-    default IKeyConflictContext semanticalConflictCtx() {
-        return chord$getSemantic().context().transform(getKeyConflictContext());
+    void chord$clearSemantics();
+
+    default IKeyConflictContext chord$getSemanticalConflictCtx(KeyContext context) {
+        return context.transform(getKeyConflictContext());
     }
 }

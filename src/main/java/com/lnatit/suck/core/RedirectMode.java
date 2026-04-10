@@ -14,7 +14,7 @@ public enum RedirectMode {
 
     // context_clash
     public static final SymmetricEnumMatrix<RedirectMode, ConflictInfo> MATRIX =
-            new SymmetricEnumMatrix<>(RedirectMode.class, new ConflictTag.Pair(ConflictTag.simple("r_cc"), Severity.SEVERE));
+            new SymmetricEnumMatrix<>(RedirectMode.class, new ConflictTag.Pair(ConflictTag.simple("r_cc"), Severity.SEVERE, true));
 
     static {
         // no_redirect
@@ -26,6 +26,6 @@ public enum RedirectMode {
         MATRIX.put(NONE, MOUSE, new ConflictRisk.LoseFocus());
         MATRIX.put(KEY, MOUSE, new ConflictRisk.InputBlock());
         // focus_collision
-        MATRIX.put(MOUSE, MOUSE, new ConflictTag.Pair(ConflictTag.simple("r_fc"), Severity.SEVERE));
+        MATRIX.put(MOUSE, MOUSE, new ConflictTag.Pair(ConflictTag.simple("r_fc"), Severity.SEVERE, true));
     }
 }

@@ -2,15 +2,8 @@ package com.lnatit.suck.core;
 
 import java.util.List;
 
-public interface KeySemantic
-{
-    KeySemantic DEFAULT = new KeySemantic()
-    {
-        @Override
-        public KeyContext context() {
-            return KeyContext.AS_IS;
-        }
-
+public interface KeySemantic {
+    KeySemantic DEFAULT = new KeySemantic() {
         @Override
         public StateSet states() {
             return StateSet.EMPTY;
@@ -26,10 +19,10 @@ public interface KeySemantic
             return false;
         }
 
-        public RedirectMode redirectMode() {return RedirectMode.NONE;}
+        public RedirectMode redirectMode() {
+            return RedirectMode.NONE;
+        }
     };
-
-    KeyContext context();
 
     StateSet states();
 
@@ -39,43 +32,11 @@ public interface KeySemantic
 
     RedirectMode redirectMode();
 
-    record Simple(KeyContext context,
-                  StateSet states,
-                  Modality modality,
-                  boolean intercept,
-                  RedirectMode redirectMode) implements KeySemantic
-    {}
-
-    sealed interface Advanced extends KeySemantic permits InGame, InGui
-    {
-        List<String> intents();
-
-        ActionCategory actionCategory();
+    record Simple(StateSet states, Modality modality, boolean intercept,
+                  RedirectMode redirectMode) implements KeySemantic {
     }
 
-    record InGame(StateSet states,
-                  List<String> intents,
-                  Modality modality,
-                  boolean intercept,
-                  RedirectMode redirectMode,
-                  ActionCategory.InGame actionCategory) implements Advanced
-    {
-        @Override
-        public KeyContext context() {
-            return KeyContext.IN_GAME;
-        }
-    }
-
-    record InGui(StateSet states,
-                 List<String> intents,
-                 Modality modality,
-                 boolean intercept,
-                 RedirectMode redirectMode,
-                 ActionCategory.InGui actionCategory) implements Advanced
-    {
-        @Override
-        public KeyContext context() {
-            return KeyContext.IN_GUI;
-        }
+    record Advanced(StateSet states, List<String> intents, Modality modality, boolean intercept,
+                    RedirectMode redirectMode, Resource resource, boolean readOnly) implements KeySemantic {
     }
 }

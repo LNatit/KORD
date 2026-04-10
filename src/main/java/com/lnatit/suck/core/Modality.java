@@ -86,6 +86,7 @@ public enum Modality {
 
     public static final SymmetricEnumMatrix<Modality, ConflictTag.Pair> MATRIX = new SymmetricEnumMatrix<>(Modality.class, new ConflictTag.Pair(M_OM, Severity.SAFE));
 
+    // Todo escalate severity when has tag
     static {
         MATRIX.putAll(HOLD, new ConflictTag.Pair(M_TM, Severity.INFO), PRESS, TOGGLE);
         MATRIX.put(PRESS, TOGGLE, new ConflictTag.Pair(M_RS, Severity.INFO));
