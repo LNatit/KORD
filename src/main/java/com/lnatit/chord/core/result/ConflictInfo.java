@@ -1,4 +1,4 @@
-package com.lnatit.suck.core.result;
+package com.lnatit.chord.core.result;
 
 public sealed interface ConflictInfo permits ConflictRisk, ConflictInfo.MeltdownWrapper
 {

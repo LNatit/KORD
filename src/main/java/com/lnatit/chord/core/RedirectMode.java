@@ -1,7 +1,7 @@
-package com.lnatit.suck.core;
+package com.lnatit.chord.core;
 
-import com.lnatit.suck.core.result.*;
-import com.lnatit.suck.core.util.SymmetricEnumMatrix;
+import com.lnatit.chord.core.result.*;
+import com.lnatit.chord.core.util.SymmetricEnumMatrix;
 
 public enum RedirectMode
 {

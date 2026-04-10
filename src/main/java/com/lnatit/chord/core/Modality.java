@@ -1,10 +1,10 @@
-package com.lnatit.suck.core;
+package com.lnatit.chord.core;
 
-import com.lnatit.suck.core.result.ConflictInfo;
-import com.lnatit.suck.core.result.ConflictRisk;
-import com.lnatit.suck.core.result.ConflictTag;
-import com.lnatit.suck.core.result.Severity;
-import com.lnatit.suck.core.util.SymmetricEnumMatrix;
+import com.lnatit.chord.core.result.ConflictInfo;
+import com.lnatit.chord.core.result.ConflictRisk;
+import com.lnatit.chord.core.result.ConflictTag;
+import com.lnatit.chord.core.result.Severity;
+import com.lnatit.chord.core.util.SymmetricEnumMatrix;
 
 /**
  * <h3>模态定义缩写：</h3>

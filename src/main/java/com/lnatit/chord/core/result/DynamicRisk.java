@@ -1,4 +1,4 @@
-package com.lnatit.suck.core.result;
+package com.lnatit.chord.core.result;
 
 public abstract class DynamicRisk implements ConflictRisk
 {

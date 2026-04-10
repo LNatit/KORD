@@ -1,4 +1,4 @@
-package com.lnatit.suck.core;
+package com.lnatit.chord.core;
 
 public interface StateSet {
     StateSet EMPTY = null;

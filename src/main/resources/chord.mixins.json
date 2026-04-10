@@ -1,6 +1,6 @@
 {
     "required": true,
-    "package": "com.lnatit.suck.mixin",
+    "package": "com.lnatit.chord.mixin",
     "compatibilityLevel": "JAVA_21",
     "mixins": [],
     "injectors": {

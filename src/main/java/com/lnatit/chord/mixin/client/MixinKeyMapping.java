@@ -1,15 +1,14 @@
-package com.lnatit.suck.mixin.client;
+package com.lnatit.chord.mixin.client;
 
-import com.lnatit.suck.core.KeyContext;
-import com.lnatit.suck.core.KeySemantic;
-import com.lnatit.suck.core.SemanticalKey;
+import com.lnatit.chord.core.KeyContext;
+import com.lnatit.chord.core.KeySemantic;
+import com.lnatit.chord.core.SemanticalKey;
 import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 

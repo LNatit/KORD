@@ -1,4 +1,4 @@
-package com.lnatit.suck.core;
+package com.lnatit.chord.core;
 
 import java.util.HashMap;
 import java.util.Map;

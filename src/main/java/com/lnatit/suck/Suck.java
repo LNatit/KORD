@@ -31,7 +31,7 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
-@Mod(Suck.MODID)
+//@Mod(Suck.MODID)
 public class Suck
 {
     // Define mod id in a common place for everything to reference

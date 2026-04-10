@@ -1,9 +1,8 @@
-package com.lnatit.suck.core;
+package com.lnatit.chord.core;
 
 import net.neoforged.neoforge.client.extensions.IKeyMappingExtension;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
