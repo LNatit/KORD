@@ -1,58 +1,19 @@
 package com.lnatit.suck.core.result;
 
-public non-sealed interface ConflictRisk extends ConflictInfo {
-    ConflictTag toTag();
+public non-sealed interface ConflictRisk extends ConflictInfo
+{
+    ConflictTag tag();
+
+    Severity severity();
 
     default void attachTo(ConflictCollector collector) {
         collector.withRisk(this);
     }
 
-    record StateSubset(boolean subjectIsSubset) implements ConflictRisk {
-        @Override
-        public ConflictTag toTag() {
-            return ConflictTag.debug("s_ss");
-        }
+    static ConflictRisk of(ConflictTag tag, Severity severity) {
+        return new Static(tag, severity);
     }
 
-    record InterceptInput(boolean subjectIsInterceptor) implements ConflictRisk {
-        @Override
-        public ConflictTag toTag() {
-            return new ConflictTag.Simple("i_ii");
-        }
-    }
-
-    record RaceCondition() implements ConflictRisk {
-        @Override
-        public ConflictTag toTag() {
-            return new ConflictTag.Simple("i_rc");
-        }
-    }
-
-    record IntentShare(boolean identical) implements ConflictRisk {
-        @Override
-        public ConflictTag toTag() {
-            return new ConflictTag.Simple("t_is");
-        }
-    }
-
-    record DeferredRisk(boolean both) implements ConflictRisk {
-        @Override
-        public ConflictTag toTag() {
-            return new ConflictTag.Simple("r_dr");
-        }
-    }
-
-    record LoseFocus() implements ConflictRisk {
-        @Override
-        public ConflictTag toTag() {
-            return new ConflictTag.Simple("r_lf");
-        }
-    }
-
-    record InputBlock() implements ConflictRisk {
-        @Override
-        public ConflictTag toTag() {
-            return new ConflictTag.Simple("r_ib");
-        }
-    }
+    record Static(ConflictTag tag, Severity severity) implements ConflictRisk
+    {}
 }

@@ -19,7 +19,7 @@ public interface Evaluator
         // Physical Key
         if (!isSameKey(subject, opponent)) {
             // hardware_mismatch
-            collector.withDebugTag("k_hm");
+            collector.withDebug(ConflictTag.HARDWARE_MISMATCH);
             return collector.toResult();
         }
 
@@ -35,7 +35,7 @@ public interface Evaluator
                 // Context routing
                 if (!isContextOverlapping(sEntry.getKey(), oEntry.getKey())) {
                     // context_routed
-                    collector.withDebugTag("c_cr");
+                    collector.withDebug(ConflictTag.CONTEXT_ROUTED);
                     continue;
                 }
 
@@ -69,7 +69,7 @@ public interface Evaluator
         // TODO add deferred tag
         if (isStateMutex(subject, opponent)) {
             // state_mutex
-            collector.withDebugTag("s_sm");
+            collector.withDebug(ConflictTag.STATE_MUTEX);
             return collector;
         }
 
@@ -101,7 +101,6 @@ public interface Evaluator
 //            evaluateCategory((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
         }
 
-        collector.resolvePendingRisks();
         return collector;
     }
 
@@ -119,32 +118,32 @@ public interface Evaluator
         // Hijack eval depends on other contexts, so we don't use matrix indexing...
         boolean si = subjectSemantic.intercept();
         boolean oi = opponentSemantic.intercept();
-        if (si && oi && subjectSemantic.context() == KeyContext.IN_GAME) {
-            // race_condition
-            collector.withRisk(new ConflictRisk.RaceCondition());
-            return;
-        }
 
         if (si || oi) {
             // TODO check whether race condition need similar logic
-            ConflictRisk.StateSubset risk = collector.getRisk(ConflictRisk.StateSubset.class);
-            if (risk != null) {
-                if (risk.subjectIsSubset() == si || risk.subjectIsSubset() == !oi) {
-                    // partial_override
-                    collector.withTag(risk.toTag());
-                    collector.withTag("i_po", Severity.INFO);
-                    collector.setFinished();
-                    return;
-                }
+            DynamicRisk.StateSubset risk = collector.getRisk(DynamicRisk.StateSubset.class);
+            if (risk != null && (risk.subjectIsSubset() == si || risk.subjectIsSubset() == !oi)) {
+                // partial_override
+                // TODO double check
+//                    collector.withDebug(risk.tag());
+                collector.withRisk(ConflictTag.PARTIAL_OVERRIDE, Severity.INFO);
+                collector.setFinished();
+                return;
+            }
+
+            if (si && oi) {
+                // race_condition
+                collector.withRisk(new DynamicRisk.RaceCondition());
+                return;
             }
 
             // intercept_input
-            collector.withRisk(new ConflictRisk.InterceptInput(si));
+            collector.withRisk(new DynamicRisk.InterceptInput(si));
             return;
         }
 
         // concurrent_input
-        collector.withDebugTag("h_ci");
+        collector.withDebug(ConflictTag.CONCURRENT_INPUT);
     }
 
     static void evaluateRedirect(
@@ -168,17 +167,19 @@ public interface Evaluator
         List<String> sI = subjectSemantic.intents();
         List<String> oI = opponentSemantic.intents();
         if (Intent.hasShared(sI, oI)) {
-            ConflictRisk.InterceptInput risk = collector.getRisk(ConflictRisk.InterceptInput.class);
+            DynamicRisk.InterceptInput risk = collector.getRisk(DynamicRisk.InterceptInput.class);
             if (risk != null) {
                 // intent_shared
-                collector.withTag(risk.toTag());
-                collector.withTag("t_ii", Severity.INFO);
+                // TODO double check
+//                collector.withDebug(risk.tag());
+//                collector.withRisk(ConflictTag.INTENT_SHARED, Severity.INFO);
+                risk.setSeverity(Severity.INFO);
                 collector.setFinished();
                 return;
             }
 
             // intent_shared
-            collector.withRisk(new ConflictRisk.IntentShare(Intent.isIdentical(sI, oI)));
+            collector.withRisk(new DynamicRisk.IntentShare(Intent.isIdentical(sI, oI)));
         }
     }
 
@@ -187,7 +188,7 @@ public interface Evaluator
             KeySemantic.Advanced opponentSemantic,
             ConflictCollector collector
     ) {
-        collector.withPair(Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality()));
+        Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality()).attachTo(collector);
     }
 
     static void evaluateResource(
@@ -201,11 +202,12 @@ public interface Evaluator
             if (!(subjectSemantic.readOnly() && opponentSemantic.readOnly())) {
                 if (!subjectSemantic.readOnly() && !opponentSemantic.readOnly()) {
                     if (!sRes.supportsConcurrentWrites) {
-                        collector.withTag("r_cw", Severity.SEVERE);
+                        collector.withRisk(ConflictTag.CONCURRENT_WRITE, Severity.SEVERE);
                     }
                 }
                 else {
-                    collector.withTag("r_rw", sRes.supportsConcurrentWrites ? Severity.INFO : Severity.WARNING);
+                    collector.withRisk(ConflictTag.READ_WRITE,
+                                       sRes.supportsConcurrentWrites ? Severity.INFO : Severity.WARNING);
                 }
             }
             return;

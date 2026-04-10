@@ -1,6 +1,7 @@
 package com.lnatit.suck.core;
 
 import com.lnatit.suck.core.result.ConflictInfo;
+import com.lnatit.suck.core.result.ConflictRisk;
 import com.lnatit.suck.core.result.ConflictTag;
 import com.lnatit.suck.core.result.Severity;
 import com.lnatit.suck.core.util.SymmetricEnumMatrix;
@@ -78,21 +79,15 @@ public enum Modality {
     // We combine HOLD with RELEASE, cuz hardly you see a pure RELEASE key
     PRESS, HOLD, TOGGLE, CYCLE;
 
-    public static final ConflictTag M_OM = ConflictTag.simple("m_om");
-    public static final ConflictTag M_TM = ConflictTag.simple("m_tm");
-    public static final ConflictTag M_RS = ConflictTag.simple("m_rs");
-    public static final ConflictTag M_SL = ConflictTag.simple("m_sl");
-    public static final ConflictTag M_SE = ConflictTag.simple("m_se");
-
-    public static final SymmetricEnumMatrix<Modality, ConflictTag.Pair> MATRIX = new SymmetricEnumMatrix<>(Modality.class, new ConflictTag.Pair(M_OM, Severity.SAFE));
+    public static final SymmetricEnumMatrix<Modality, ConflictInfo> MATRIX = new SymmetricEnumMatrix<>(Modality.class, ConflictRisk.of(ConflictTag.OPERATION_MATCH, Severity.SAFE));
 
     // Todo escalate severity when has tag
     static {
-        MATRIX.putAll(HOLD, new ConflictTag.Pair(M_TM, Severity.INFO), PRESS, TOGGLE);
-        MATRIX.put(PRESS, TOGGLE, new ConflictTag.Pair(M_RS, Severity.INFO));
-        MATRIX.put(HOLD, CYCLE, new ConflictTag.Pair(M_TM, Severity.WARNING));
-        MATRIX.put(PRESS, CYCLE, new ConflictTag.Pair(M_RS, Severity.WARNING));
-        MATRIX.put(TOGGLE, TOGGLE, new ConflictTag.Pair(M_SL, Severity.WARNING));
-        MATRIX.putAll(CYCLE, new ConflictTag.Pair(M_SE, Severity.SEVERE), TOGGLE, CYCLE);
+        MATRIX.putAll(HOLD, ConflictRisk.of(ConflictTag.TIMING_MISMATCH, Severity.INFO), PRESS, TOGGLE);
+        MATRIX.put(PRESS, TOGGLE, ConflictRisk.of(ConflictTag.REPEAT_SWITCH, Severity.INFO));
+        MATRIX.put(HOLD, CYCLE, ConflictRisk.of(ConflictTag.TIMING_MISMATCH, Severity.WARNING));
+        MATRIX.put(PRESS, CYCLE, ConflictRisk.of(ConflictTag.REPEAT_SWITCH, Severity.WARNING));
+        MATRIX.put(TOGGLE, TOGGLE, ConflictRisk.of(ConflictTag.STATE_LOCK, Severity.WARNING));
+        MATRIX.putAll(CYCLE, ConflictRisk.of(ConflictTag.STATE_EXPLODE, Severity.SEVERE), TOGGLE, CYCLE);
     }
 }
