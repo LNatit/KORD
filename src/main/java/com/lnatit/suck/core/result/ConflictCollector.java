@@ -1,18 +1,21 @@
 package com.lnatit.suck.core.result;
 
-import com.lnatit.suck.Suck;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class ConflictCollector {
+public class ConflictCollector
+{
     private boolean finished = false;
     private Severity severity = Severity.SAFE;
     private final List<ConflictTag> tags = new ArrayList<>();
     private final List<ConflictRisk> risks = new ArrayList<>(2);
 
     public ConflictCollector withTag(ConflictTag tag) {
+        if (tag.severity().compareTo(this.severity) > 0) {
+            this.severity = tag.severity();
+        }
         tags.add(tag);
         return this;
     }
@@ -21,16 +24,18 @@ public class ConflictCollector {
         return withTag(ConflictTag.debug(shortCode));
     }
 
-    public ConflictCollector withTag(ConflictTag tag, Severity tagSeverity) {
-        if (tagSeverity.compareTo(this.severity) > 0) {
-            this.severity = tagSeverity;
-        }
-        return withTag(tag);
+    public ConflictCollector withTag(String shortCode, Severity severity) {
+        return withTag(ConflictTag.simple(shortCode, severity));
     }
 
     @Deprecated
     public ConflictCollector withPair(ConflictTag.Pair pair) {
-        return withTag(pair.tag(), pair.severity());
+        return withTag(pair.tag());
+    }
+
+    public ConflictCollector merge(ConflictCollector collector) {
+        // TODO do merge
+        return this;
     }
 
     public ConflictCollector withRisk(ConflictRisk risk) {

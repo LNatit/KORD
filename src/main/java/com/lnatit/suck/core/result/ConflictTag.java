@@ -4,6 +4,8 @@ public interface ConflictTag
 {
     String shortCode();
 
+    Severity severity();
+
     default boolean isDiagnostic() {
         return false;
     }
@@ -12,30 +14,35 @@ public interface ConflictTag
         return new Debug(shortCode);
     }
 
-    static ConflictTag simple(String shortCode) {
-        return new Simple(shortCode);
+    static ConflictTag simple(String shortCode, Severity severity) {
+        return new Simple(shortCode, severity);
     }
 
     record Debug(String shortCode) implements ConflictTag
     {
+        @Override
+        public Severity severity() {
+            return Severity.INFO;
+        }
+
         @Override
         public boolean isDiagnostic() {
             return true;
         }
     }
 
-    record Simple(String shortCode) implements ConflictTag
+    record Simple(String shortCode, Severity severity) implements ConflictTag
     {}
 
 
-    record Pair(ConflictTag tag, Severity severity, boolean meltDown) implements ConflictInfo {
-        public Pair(ConflictTag tag, Severity severity) {
-            this(tag, severity, false);
+    record Pair(ConflictTag tag,boolean meltDown) implements ConflictInfo {
+        public Pair(ConflictTag tag) {
+            this(tag, false);
         }
 
         @Override
         public void attachTo(ConflictCollector collector) {
-            collector.withTag(tag, severity);
+            collector.withTag(tag);
             if (meltDown) {
                 collector.setFinished();
             }

@@ -9,7 +9,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Mixin(KeyMapping.class)
 public abstract class MixinKeyMapping implements SemanticalKey {
@@ -25,6 +27,11 @@ public abstract class MixinKeyMapping implements SemanticalKey {
     @Override
     public KeySemantic chord$getSemantic(KeyContext context) {
         return this.chord$semantics.get(this.chord$getSemanticalConflictCtx(context));
+    }
+
+    @Override
+    public Set<Map.Entry<IKeyConflictContext, KeySemantic>> chord$getSemanticEntries() {
+        return this.chord$semantics.entrySet();
     }
 
     @Override

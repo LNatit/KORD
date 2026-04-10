@@ -14,13 +14,4 @@ public interface Intent {
     static boolean isIdentical(List<String> intents1, List<String> intents2) {
         return false;
     }
-
-
-    enum InGame implements Intent {
-
-    }
-
-    enum InGui implements Intent {
-
-    }
 }

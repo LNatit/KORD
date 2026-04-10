@@ -5,10 +5,14 @@ import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
-public interface Evaluator {
-
+public interface Evaluator
+{
+    /**
+     * @see KeyMapping#same(KeyMapping)
+     */
     static ConflictResult conflicts(KeyMapping subject, KeyMapping opponent) {
         ConflictCollector collector = new ConflictCollector();
 
@@ -19,13 +23,6 @@ public interface Evaluator {
             return collector.toResult();
         }
 
-        // Context routing
-        if (!isContextOverlapping(subject, opponent)) {
-            // context_routed
-            collector.withDebugTag("c_cr");
-            return collector.toResult();
-        }
-
         // User override
         Optional<ConflictResult> override = getUserOverride(subject, opponent);
         // TODO add debug tag user_override (u_*o), distinguish builtin(b) creator(c) user(u) player(p)
@@ -33,22 +30,31 @@ public interface Evaluator {
             return override.get();
         }
 
+        for (Map.Entry<IKeyConflictContext, KeySemantic> sEntry : ((SemanticalKey) subject).chord$getSemanticEntries()) {
+            for (Map.Entry<IKeyConflictContext, KeySemantic> oEntry : ((SemanticalKey) opponent).chord$getSemanticEntries()) {
+                // Context routing
+                if (!isContextOverlapping(sEntry.getKey(), oEntry.getKey())) {
+                    // context_routed
+                    collector.withDebugTag("c_cr");
+                    continue;
+                }
 
-
-
-
+                collector.merge(eval(sEntry.getValue(), oEntry.getValue()));
+            }
+        }
 
         return collector.toResult();
     }
 
     static boolean isSameKey(KeyMapping subject, KeyMapping opponent) {
-        return subject.getKey().equals(opponent.getKey()) && subject.getDefaultKeyModifier().equals(opponent.getDefaultKeyModifier()) && subject.getKeyModifier().equals(opponent.getKeyModifier());
+        return subject.getKey().equals(opponent.getKey())
+               && subject.getDefaultKeyModifier()
+                         .equals(opponent.getDefaultKeyModifier())
+               && subject.getKeyModifier().equals(opponent.getKeyModifier());
     }
 
-    static boolean isContextOverlapping(KeyMapping subject, KeyMapping opponent) {
-        IKeyConflictContext subjectCtx = ((SemanticalKey) subject).semanticalConflictCtx();
-        IKeyConflictContext opponentCtx = ((SemanticalKey) opponent).semanticalConflictCtx();
-        return subjectCtx.conflicts(opponentCtx) || opponentCtx.conflicts(subjectCtx);
+    static boolean isContextOverlapping(IKeyConflictContext subjectContext, IKeyConflictContext opponentContext) {
+        return subjectContext.conflicts(opponentContext) || opponentContext.conflicts(subjectContext);
     }
 
     static Optional<ConflictResult> getUserOverride(KeyMapping subject, KeyMapping opponent) {
@@ -56,33 +62,27 @@ public interface Evaluator {
         return Optional.empty();
     }
 
-
-    /**
-     * @param subject  must be bound
-     * @param opponent
-     * @return
-     * @see KeyMapping#same(KeyMapping)
-     */
-    static ConflictResult eval(KeySemantic subject, KeySemantic opponent, ConflictCollector collector) {
+    static ConflictCollector eval(KeySemantic subject, KeySemantic opponent) {
+        ConflictCollector collector = new ConflictCollector();
 
         // State mutex
         // TODO add deferred tag
         if (isStateMutex(subject, opponent)) {
             // state_mutex
             collector.withDebugTag("s_sm");
-            return collector.toResult();
+            return collector;
         }
 
         // Input interception
         evaluateIntercept(subject, opponent, collector);
         if (collector.finished()) {
-            return collector.toResult();
+            return collector;
         }
 
         // Redirect mode
         evaluateRedirect(subject, opponent, collector);
         if (collector.finished()) {
-            return collector.toResult();
+            return collector;
         }
 
         boolean advanced = canApplyAdvancedLogic(subject, opponent);
@@ -93,16 +93,16 @@ public interface Evaluator {
             // Player intent (use T instead of I to avoid confusion with intercept)
             evaluateIntent((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
             if (collector.finished()) {
-                return collector.toResult();
+                return collector;
             }
 
             evaluateModality((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
 
-            evaluateCategory((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
+//            evaluateCategory((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
         }
 
         collector.resolvePendingRisks();
-        return collector.toResult();
+        return collector;
     }
 
     static boolean isStateMutex(KeySemantic subject, KeySemantic opponent) {
@@ -111,7 +111,11 @@ public interface Evaluator {
         return StateSet.isMutex(subjectStates, opponentStates);
     }
 
-    static void evaluateIntercept(KeySemantic subjectSemantic, KeySemantic opponentSemantic, ConflictCollector collector) {
+    static void evaluateIntercept(
+            KeySemantic subjectSemantic,
+            KeySemantic opponentSemantic,
+            ConflictCollector collector
+    ) {
         // Hijack eval depends on other contexts, so we don't use matrix indexing...
         boolean si = subjectSemantic.intercept();
         boolean oi = opponentSemantic.intercept();
@@ -128,12 +132,11 @@ public interface Evaluator {
                 if (risk.subjectIsSubset() == si || risk.subjectIsSubset() == !oi) {
                     // partial_override
                     collector.withTag(risk.toTag());
-                    collector.withTag(new ConflictTag.Simple("i_po"), Severity.INFO);
+                    collector.withTag("i_po", Severity.INFO);
                     collector.setFinished();
                     return;
                 }
             }
-
 
             // intercept_input
             collector.withRisk(new ConflictRisk.InterceptInput(si));
@@ -144,18 +147,24 @@ public interface Evaluator {
         collector.withDebugTag("h_ci");
     }
 
-    static void evaluateRedirect(KeySemantic subjectSemantic, KeySemantic opponentSemantic, ConflictCollector collector) {
+    static void evaluateRedirect(
+            KeySemantic subjectSemantic,
+            KeySemantic opponentSemantic,
+            ConflictCollector collector
+    ) {
         ConflictInfo info = RedirectMode.MATRIX.get(subjectSemantic.redirectMode(), opponentSemantic.redirectMode());
         info.attachTo(collector);
     }
 
     static boolean canApplyAdvancedLogic(KeySemantic semantic1, KeySemantic semantic2) {
-        boolean advanced = semantic1 instanceof KeySemantic.Advanced && semantic2 instanceof KeySemantic.Advanced;
-        boolean same = semantic1.getClass().equals(semantic2.getClass());
-        return advanced && same;
+        return semantic1 instanceof KeySemantic.Advanced && semantic2 instanceof KeySemantic.Advanced;
     }
 
-    static void evaluateIntent(KeySemantic.Advanced subjectSemantic, KeySemantic.Advanced opponentSemantic, ConflictCollector collector) {
+    static void evaluateIntent(
+            KeySemantic.Advanced subjectSemantic,
+            KeySemantic.Advanced opponentSemantic,
+            ConflictCollector collector
+    ) {
         List<String> sI = subjectSemantic.intents();
         List<String> oI = opponentSemantic.intents();
         if (Intent.hasShared(sI, oI)) {
@@ -163,7 +172,7 @@ public interface Evaluator {
             if (risk != null) {
                 // intent_shared
                 collector.withTag(risk.toTag());
-                collector.withTag(new ConflictTag.Simple("t_ii"), Severity.INFO);
+                collector.withTag("t_ii", Severity.INFO);
                 collector.setFinished();
                 return;
             }
@@ -173,36 +182,35 @@ public interface Evaluator {
         }
     }
 
-    static void evaluateModality(KeySemantic.Advanced subjectSemantic, KeySemantic.Advanced opponentSemantic, ConflictCollector collector) {
+    static void evaluateModality(
+            KeySemantic.Advanced subjectSemantic,
+            KeySemantic.Advanced opponentSemantic,
+            ConflictCollector collector
+    ) {
         collector.withPair(Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality()));
     }
 
-    static void evaluateCategory(KeySemantic.Advanced subjectSemantic, KeySemantic.Advanced opponentSemantic, ConflictCollector collector) {
-        assert subjectSemantic.getClass() == opponentSemantic.getClass();
-        ConflictTag.Pair pair;
-//        switch (subjectSemantic) {
-//            case KeySemantic.InGame ignored ->
-//                    pair = ActionCategory.InGame.MATRIX.get((ActionCategory.InGame) subjectSemantic.actionCategory(), (ActionCategory.InGame) opponentSemantic.actionCategory());
-//            case KeySemantic.InGui ignored ->
-//                    pair = ActionCategory.InGui.MATRIX.get((ActionCategory.InGui) subjectSemantic.actionCategory(), (ActionCategory.InGui) opponentSemantic.actionCategory());
-//        }
-
-        if (subjectSemantic.actionCategory() == opponentSemantic.actionCategory()) {
-            ConflictRisk.RaceCondition rc = collector.getRisk(ConflictRisk.RaceCondition.class);
-            ConflictRisk.IntentShare is = collector.getRisk(ConflictRisk.IntentShare.class);
-            if (rc != null && is != null && is.identical()) {
-                collector.withTag(rc.toTag());
-                collector.withTag(is.toTag());
-
-                // takes effect in escalation, so we remove it
-                collector.remove(ConflictRisk.RaceCondition.class);
-                collector.remove(ConflictRisk.IntentShare.class);
-
-                // implement_contend
-                collector.withTag(new ConflictTag.Simple("a_ic"), Severity.WARNING);
+    static void evaluateResource(
+            KeySemantic.Advanced subjectSemantic,
+            KeySemantic.Advanced opponentSemantic,
+            ConflictCollector collector
+    ) {
+        Resource sRes = subjectSemantic.resource();
+        Resource oRes = opponentSemantic.resource();
+        if (Resource.overlaps(sRes, oRes)) {
+            if (!(subjectSemantic.readOnly() && opponentSemantic.readOnly())) {
+                if (!subjectSemantic.readOnly() && !opponentSemantic.readOnly()) {
+                    if (!sRes.supportsConcurrentWrites) {
+                        collector.withTag("r_cw", Severity.SEVERE);
+                    }
+                }
+                else {
+                    collector.withTag("r_rw", sRes.supportsConcurrentWrites ? Severity.INFO : Severity.WARNING);
+                }
             }
+            return;
         }
-
-        collector.withPair(pair);
+        // add debug tag?
+        return;
     }
 }
