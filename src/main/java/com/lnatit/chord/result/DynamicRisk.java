@@ -17,6 +17,11 @@ public abstract class DynamicRisk implements ConflictRisk
         return this.severity;
     }
 
+    public interface Escalatable
+    {
+        ConflictRisk escalate();
+    }
+
     public static final class StateSubset extends DynamicRisk
     {
         private final boolean subjectIsSubset;

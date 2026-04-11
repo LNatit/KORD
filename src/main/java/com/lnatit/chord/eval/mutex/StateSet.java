@@ -1,4 +1,4 @@
-package com.lnatit.chord.eval;
+package com.lnatit.chord.eval.mutex;
 
 public interface StateSet {
     StateSet EMPTY = null;

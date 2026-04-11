@@ -1,5 +1,7 @@
 package com.lnatit.chord.eval;
 
+import com.lnatit.chord.eval.intent.Intent;
+import com.lnatit.chord.eval.mutex.StateSet;
 import com.lnatit.chord.result.*;
 import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
@@ -25,7 +27,7 @@ public interface Evaluator
 
         // User override
         Optional<ConflictResult> override = getUserOverride(subject, opponent);
-        // TODO add debug tag user_override (u_*o), distinguish builtin(b) creator(c) user(u) player(p)
+        // TODO add debug tag user_override (u_*o), distinguish user(u) builtin(b) creator(c) player(p)
         if (override.isPresent()) {
             return override.get();
         }
