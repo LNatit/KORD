@@ -1,4 +1,4 @@
-package com.lnatit.chord.core;
+package com.lnatit.chord.eval;
 
 import net.neoforged.neoforge.client.extensions.IKeyMappingExtension;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;

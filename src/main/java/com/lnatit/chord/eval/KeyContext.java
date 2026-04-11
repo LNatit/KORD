@@ -1,4 +1,4 @@
-package com.lnatit.chord.core;
+package com.lnatit.chord.eval;
 
 import net.minecraft.util.StringRepresentable;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;

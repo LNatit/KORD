@@ -1,4 +1,4 @@
-package com.lnatit.chord.core;
+package com.lnatit.chord.eval;
 
 public interface StateSet {
     StateSet EMPTY = null;

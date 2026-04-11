@@ -1,4 +1,4 @@
-package com.lnatit.chord.core.result;
+package com.lnatit.chord.result;
 
 public record ConflictTag(String shortCode, boolean isDiagnostic)
 {

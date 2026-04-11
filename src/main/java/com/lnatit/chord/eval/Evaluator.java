@@ -1,6 +1,6 @@
-package com.lnatit.chord.core;
+package com.lnatit.chord.eval;
 
-import com.lnatit.chord.core.result.*;
+import com.lnatit.chord.result.*;
 import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 

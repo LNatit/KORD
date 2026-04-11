@@ -1,4 +1,4 @@
-package com.lnatit.chord.core.util;
+package com.lnatit.chord.util;
 
 /**
  * 通用的二维对称枚举矩阵工具类

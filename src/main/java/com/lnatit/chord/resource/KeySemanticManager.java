@@ -2,6 +2,8 @@ package com.lnatit.chord.resource;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
@@ -20,8 +22,7 @@ public class KeySemanticManager extends SimpleJsonResourceReloadListener {
 
     }
 
-    @Override
-    public String getName() {
-        return super.getName();
+    private static KeyMapping lookup(String name) {
+        return KeyMapping.ALL.get(name);
     }
 }

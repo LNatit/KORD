@@ -1,11 +1,13 @@
 package com.lnatit.chord.mixin.client;
 
-import com.lnatit.chord.core.KeyContext;
-import com.lnatit.chord.core.KeySemantic;
-import com.lnatit.chord.core.SemanticalKey;
+import com.lnatit.chord.eval.KeyContext;
+import com.lnatit.chord.eval.KeySemantic;
+import com.lnatit.chord.eval.SemanticalKey;
 import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 
 import java.util.HashMap;
@@ -16,7 +18,6 @@ import java.util.Set;
 public abstract class MixinKeyMapping implements SemanticalKey {
     @Unique
     private final Map<IKeyConflictContext, KeySemantic> chord$semantics = new HashMap<>();
-
 
     @Override
     public void chord$addSemantic(KeyContext context, KeySemantic semantic) {

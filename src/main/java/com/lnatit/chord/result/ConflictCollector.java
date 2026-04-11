@@ -1,4 +1,4 @@
-package com.lnatit.chord.core.result;
+package com.lnatit.chord.result;
 
 import org.jetbrains.annotations.Nullable;
 
