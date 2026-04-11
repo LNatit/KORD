@@ -9,6 +9,7 @@ import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.client.settings.KeyConflictContext;
 import net.neoforged.neoforge.common.conditions.ConditionContext;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
+import net.neoforged.neoforgespi.language.IModInfo;
 
 public class A
 {
@@ -21,4 +22,5 @@ public class A
     ScreenEvent se;
     RegisterKeyMappingsEvent ke;
     ConditionContext cc;
+    IModInfo.ModVersion mv;
 }
