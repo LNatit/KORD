@@ -90,10 +90,10 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
             for (Object2IntMap.Entry<MutexSet> entry : this.mutexSetToBitmap().object2IntEntrySet()) {
                 int bitmap = entry.getIntValue();
                 int res = entry.getKey().getMask() & ~bitmap; // 取反并保留有效位
-                if (res == 0) {
-                    return EMPTY;
+                if (res != 0) 
+                {
+                    result.add(singleton(entry.getKey(), res));
                 }
-                result.add(singleton(entry.getKey(), res));
             }
             return UnionSet.of(result);
         }
