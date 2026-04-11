@@ -1,6 +1,7 @@
 package com.lnatit.chord.resource.semantic;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.ResourceLocation;
@@ -11,9 +12,12 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import java.util.Map;
 
 public class KeySemanticManager extends SimpleJsonResourceReloadListener {
+    public static final KeySemanticManager INSTANCE = new KeySemanticManager();
 
-    public KeySemanticManager(Gson gson) {
-        super(gson, directory);
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+
+    private KeySemanticManager() {
+        super(GSON, "key_semantics");
     }
 
     @Override

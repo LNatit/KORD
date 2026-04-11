@@ -1,5 +1,6 @@
 package com.lnatit.chord;
 
+import com.lnatit.chord.resource.KeySemanticManager;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
@@ -17,6 +18,6 @@ public class Chord {
 
 
     private void registerSemanticReloadListener(RegisterClientReloadListenersEvent event) {
-
+        event.registerReloadListener(KeySemanticManager.INSTANCE);
     }
 }
