@@ -33,10 +33,17 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
             mutexSetToBitmap = Object2IntMaps.unmodifiable(mutexSetToBitmap);
         }
 
-        public static HyperRect singleton(MutexSet mutexSet, int bitmap) {
+        private static HyperRect internalS(MutexSet mutexSet, int bitmap) {
             Object2IntOpenHashMap<MutexSet> map = new Object2IntOpenHashMap<>();
             map.put(mutexSet, bitmap);
             return new HyperRect(map);
+        }
+
+        public static StateSet singleton(MutexSet mutexSet, int bitmap) {
+            if (bitmap == 0) {
+                return EMPTY;
+            }
+            return internalS(mutexSet, bitmap);
         }
 
         @Override
@@ -90,9 +97,8 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
             for (Object2IntMap.Entry<MutexSet> entry : this.mutexSetToBitmap().object2IntEntrySet()) {
                 int bitmap = entry.getIntValue();
                 int res = entry.getKey().getMask() & ~bitmap; // 取反并保留有效位
-                if (res != 0) 
-                {
-                    result.add(singleton(entry.getKey(), res));
+                if (res != 0) {
+                    result.add(internalS(entry.getKey(), res));
                 }
             }
             return UnionSet.of(result);
@@ -124,7 +130,9 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
             rects = List.copyOf(rects);
         }
 
-        public static UnionSet of(List<HyperRect> rects) {
+        public static StateSet of(List<HyperRect> rects) {
+            if (rects.isEmpty()) return EMPTY;
+
             List<HyperRect> result = new ArrayList<>();
             for (HyperRect rect : rects) {
                 // 跳过被已有矩形包含的矩形
@@ -138,7 +146,7 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
         }
 
         // 带化简的UnionSet构造器
-        public static UnionSet of(HyperRect... rects) {
+        public static StateSet of(HyperRect... rects) {
             return of(Arrays.asList(rects));
         }
 
