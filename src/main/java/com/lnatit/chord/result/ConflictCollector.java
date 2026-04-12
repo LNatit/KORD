@@ -29,18 +29,13 @@ public class ConflictCollector
     }
 
     @Nullable
-    public <T extends DynamicRisk> T getRisk(Class<T> type) {
+    public <R extends DynamicRisk> R getRisk(Class<R> type) {
         for (ConflictRisk risk : risks) {
             if (type.isInstance(risk)) {
                 return type.cast(risk);
             }
         }
         return null;
-    }
-
-    public <O extends DynamicRisk, N extends DynamicRisk> void escalateRisk(Class<O> type, N escalated) {
-        this.risks.removeIf(type::isInstance);
-        this.risks.add(escalated);
     }
 
     public void setFinished() {

@@ -1,4 +1,4 @@
-package com.lnatit.chord.resource.semantic;
+package com.lnatit.chord.data.semantic;
 
 import net.neoforged.neoforgespi.language.MavenVersionAdapter;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
@@ -6,10 +6,10 @@ import org.apache.maven.artifact.versioning.VersionRange;
 
 public interface Versioned
 {
-    boolean checkVersion(ArtifactVersion mod_version);
+    boolean isInvalid(ArtifactVersion mod_version);
 
-    static boolean containsVersion(ArtifactVersion version, String version_range) {
+    static boolean versionOutOfRange(ArtifactVersion version, String version_range) {
         VersionRange range = MavenVersionAdapter.createFromVersionSpec(version_range);
-        return range.containsVersion(version);
+        return !range.containsVersion(version);
     }
 }

@@ -1,5 +1,6 @@
 package com.lnatit.suck;
 
+import com.mojang.serialization.Decoder;
 import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.MouseHandler;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -23,4 +24,5 @@ public class A
     RegisterKeyMappingsEvent ke;
     ConditionContext cc;
     IModInfo.ModVersion mv;
+    Decoder d;
 }

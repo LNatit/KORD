@@ -1,4 +1,4 @@
-package com.lnatit.chord.resource.semantic;
+package com.lnatit.chord.data.semantic;
 
 import com.lnatit.chord.eval.KeySemantic;
 import com.lnatit.chord.eval.context.IKeyContext;
@@ -21,10 +21,10 @@ public record KeyDefinitions(int version,
         }
 
         ArtifactVersion mod_version = container.get().getModInfo().getVersion();
-        if (mod_version_range().isPresent() && !Versioned.containsVersion(mod_version, mod_version_range().get())) {
+        if (mod_version_range().isPresent() && Versioned.versionOutOfRange(mod_version, mod_version_range().get())) {
             return false;
         }
-        keys().removeIf(k -> !k.checkVersion(mod_version));
+        keys().removeIf(k -> k.isInvalid(mod_version));
         return !keys().isEmpty();
     }
 
@@ -33,12 +33,12 @@ public record KeyDefinitions(int version,
                                 List<SemanticEntry> semantics) implements Versioned
     {
         @Override
-        public boolean checkVersion(ArtifactVersion mod_version) {
-            if (mod_version_range().isPresent() && !Versioned.containsVersion(mod_version, mod_version_range().get())) {
-                return false;
+        public boolean isInvalid(ArtifactVersion mod_version) {
+            if (mod_version_range().isPresent() && Versioned.versionOutOfRange(mod_version, mod_version_range().get())) {
+                return true;
             }
-            semantics().removeIf(s -> !s.checkVersion(mod_version));
-            return !semantics().isEmpty();
+            semantics().removeIf(s -> s.isInvalid(mod_version));
+            return semantics().isEmpty();
         }
     }
 
@@ -47,8 +47,8 @@ public record KeyDefinitions(int version,
                                 KeySemantic semantic) implements Versioned
     {
         @Override
-        public boolean checkVersion(ArtifactVersion mod_version) {
-            return mod_version_range().isEmpty() || Versioned.containsVersion(mod_version, mod_version_range().get());
+        public boolean isInvalid(ArtifactVersion mod_version) {
+            return mod_version_range().isPresent() && Versioned.versionOutOfRange(mod_version, mod_version_range().get());
         }
     }
 }

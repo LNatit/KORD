@@ -1,6 +1,6 @@
 package com.lnatit.chord.eval.mutex;
 
-import com.lnatit.chord.resource.mutex.MutexSet;
+import com.lnatit.chord.data.mutex.MutexSet;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMaps;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
@@ -16,12 +16,27 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
 
     List<HyperRect> rects();
 
-    boolean isSubsetOf(StateSet other);
+    // TODO
+    boolean equals(StateSet other);
 
-    boolean isIdenticalWith(StateSet other);
+    default boolean isSubsetOf(StateSet other) {
+        if (other.isFull()) return true;
+        if (this.isFull()) return false;
+        if (this.isEmpty()) return true;
+        if (other.isEmpty()) return false;
 
-    default boolean isSubsetOrEqual(StateSet other) {
-        return this.isSubsetOf(other) || this.isIdenticalWith(other);
+        return switch (other) {
+            case HyperRect otherRect -> this.rects().stream().allMatch(r -> r.isSubsetOfRect(otherRect));
+            case UnionSet otherUnion -> {
+                if (this.rects().stream().allMatch(r -> otherUnion.rects().stream().anyMatch(r::isSubsetOfRect)))
+                    yield true;
+                yield this.intersect(otherUnion.complement()).isEmpty();
+            }
+        };
+    }
+
+    default boolean isProperSubsetOf(StateSet other) {
+        return this.isSupersetOf(other) && !this.equals(other);
     }
 
     default boolean isSupersetOf(StateSet other) {
@@ -105,16 +120,22 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
         }
 
         public List<HyperRect> rects() {
-            return List.of(this);
+            return Collections.singletonList(this);
+        }
+
+        public boolean isSubsetOfRect(HyperRect other) {
+            for (Object2IntMap.Entry<MutexSet> entry : this.mutexSetToBitmap().object2IntEntrySet()) {
+                int bitmap1 = entry.getIntValue();
+                int bitmap2 = other.mutexSetToBitmap().getOrDefault(entry.getKey(), entry.getKey().getMask());
+                if ((bitmap1 & bitmap2) != bitmap1) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         @Override
-        public boolean isSubsetOf(StateSet other) {
-            return false;
-        }
-
-        @Override
-        public boolean isIdenticalWith(StateSet other) {
+        public boolean equals(StateSet other) {
             return false;
         }
     }
@@ -136,7 +157,7 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
             List<HyperRect> result = new ArrayList<>();
             for (HyperRect rect : rects) {
                 // 跳过被已有矩形包含的矩形
-                if (result.stream().noneMatch(rect::isSubsetOrEqual)) {
+                if (result.stream().noneMatch(rect::isSubsetOf)) {
                     // 删除被当前矩形包含的已有矩形
                     result.removeIf(rect::isSupersetOf);
                     result.add(rect);
@@ -193,12 +214,12 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
         }
 
         @Override
-        public boolean isSubsetOf(StateSet other) {
+        public boolean isProperSubsetOf(StateSet other) {
             return false;
         }
 
         @Override
-        public boolean isIdenticalWith(StateSet other) {
+        public boolean equals(StateSet other) {
             return false;
         }
     }
@@ -210,6 +231,6 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
     }
 
     static boolean isMutex(StateSet set1, StateSet set2) {
-        return false;
+        return set1.intersect(set2).isEmpty();
     }
 }

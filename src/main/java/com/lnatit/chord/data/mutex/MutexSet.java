@@ -1,15 +1,11 @@
-package com.lnatit.chord.resource.mutex;
+package com.lnatit.chord.data.mutex;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MutexSet
-{
+public record MutexSet(String namespace, List<String> mutexes) {
     private static final Map<String, MutexSet> ALL_SETS = new HashMap<>();
-
-    private final String namespace;
-    private final List<String> mutexes;
 
     public MutexSet(String namespace, List<String> mutexes) {
         if (mutexes.size() > 32)
@@ -21,6 +17,16 @@ public class MutexSet
 
     public int getMask() {
         return (1 << mutexes.size()) - 1;
+    }
+
+    public int bitmapOf(List<String> mutexes) {
+        // TODO
+        return 0;
+    }
+
+    public List<String> mutexesOf(int bitmap) {
+        // TODO
+        return List.of();
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.lnatit.chord.eval;
 
+import com.lnatit.chord.eval.intent.Intent;
 import com.lnatit.chord.eval.mutex.StateSet;
 
 import java.util.List;
@@ -47,7 +48,15 @@ public interface KeySemantic
                     RedirectMode redirectMode,
                     Resource resource,
                     boolean readOnly,
-                    List<String> intents,
+                    List<Intent> intents,
                     Modality modality) implements KeySemantic
-    {}
+    {
+        public static Advanced of(StateSet states, boolean intercept, RedirectMode redirectMode, Resource resource, boolean readOnly, List<Intent> intents, Modality modality) {
+            return new Advanced(states, intercept, redirectMode, resource, readOnly, intents, modality);
+        }
+
+
+
+
+    }
 }

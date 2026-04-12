@@ -10,8 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public interface Evaluator
-{
+public interface Evaluator {
     /**
      * @see KeyMapping#same(KeyMapping)
      */
@@ -50,9 +49,9 @@ public interface Evaluator
 
     static boolean isSameKey(KeyMapping subject, KeyMapping opponent) {
         return subject.getKey().equals(opponent.getKey())
-               && subject.getDefaultKeyModifier()
-                         .equals(opponent.getDefaultKeyModifier())
-               && subject.getKeyModifier().equals(opponent.getKeyModifier());
+                && subject.getDefaultKeyModifier()
+                .equals(opponent.getDefaultKeyModifier())
+                && subject.getKeyModifier().equals(opponent.getKeyModifier());
     }
 
     static boolean isContextOverlapping(IKeyConflictContext subjectContext, IKeyConflictContext opponentContext) {
@@ -69,9 +68,8 @@ public interface Evaluator
 
         // State mutex
         // TODO add deferred tag
-        if (isStateMutex(subject, opponent)) {
-            // state_mutex
-            collector.withDebug(ConflictTag.STATE_MUTEX);
+        evaluateStateMutex(subject, opponent, collector);
+        if (collector.finished()) {
             return collector;
         }
 
@@ -92,11 +90,10 @@ public interface Evaluator
             assert subject instanceof KeySemantic.Advanced;
             assert opponent instanceof KeySemantic.Advanced;
 
+            evaluateResource((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
+
             // Player intent (use T instead of I to avoid confusion with intercept)
             evaluateIntent((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
-            if (collector.finished()) {
-                return collector;
-            }
 
             evaluateModality((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
 
@@ -106,10 +103,24 @@ public interface Evaluator
         return collector;
     }
 
-    static boolean isStateMutex(KeySemantic subject, KeySemantic opponent) {
+    static void evaluateStateMutex(
+            KeySemantic subject,
+            KeySemantic opponent,
+            ConflictCollector collector
+    ) {
         StateSet subjectStates = subject.states();
         StateSet opponentStates = opponent.states();
-        return StateSet.isMutex(subjectStates, opponentStates);
+        if (StateSet.isMutex(subjectStates, opponentStates)) {
+            // state_mutex
+            collector.withDebug(ConflictTag.STATE_MUTEX);
+            collector.setFinished();
+        } else {
+            boolean subjectIsSubset = subjectStates.isProperSubsetOf(opponentStates);
+            if (subjectIsSubset || opponentStates.isProperSubsetOf(subjectStates)) {
+                // state_subset
+                collector.withRisk(new DynamicRisk.StateSubset(subjectIsSubset));
+            }
+        }
     }
 
     static void evaluateIntercept(
@@ -161,13 +172,37 @@ public interface Evaluator
         return semantic1 instanceof KeySemantic.Advanced && semantic2 instanceof KeySemantic.Advanced;
     }
 
+    static void evaluateResource(
+            KeySemantic.Advanced subjectSemantic,
+            KeySemantic.Advanced opponentSemantic,
+            ConflictCollector collector
+    ) {
+        Resource sRes = subjectSemantic.resource();
+        Resource oRes = opponentSemantic.resource();
+        if (Resource.overlaps(sRes, oRes)) {
+            if (!(subjectSemantic.readOnly() && opponentSemantic.readOnly())) {
+                if (!subjectSemantic.readOnly() && !opponentSemantic.readOnly()) {
+                    if (!sRes.supportsConcurrentWrites()) {
+                        collector.withRisk(ConflictTag.CONCURRENT_WRITE, Severity.SEVERE);
+                    }
+                } else {
+                    collector.withRisk(ConflictTag.READ_WRITE,
+                            sRes.supportsConcurrentWrites() ? Severity.INFO : Severity.WARNING);
+                }
+            }
+            return;
+        }
+        // TODO add debug tag?
+        return;
+    }
+
     static void evaluateIntent(
             KeySemantic.Advanced subjectSemantic,
             KeySemantic.Advanced opponentSemantic,
             ConflictCollector collector
     ) {
-        List<String> sI = subjectSemantic.intents();
-        List<String> oI = opponentSemantic.intents();
+        List<Intent> sI = subjectSemantic.intents();
+        List<Intent> oI = opponentSemantic.intents();
         if (Intent.hasShared(sI, oI)) {
             DynamicRisk.InterceptInput risk = collector.getRisk(DynamicRisk.InterceptInput.class);
             if (risk != null) {
@@ -176,7 +211,7 @@ public interface Evaluator
 //                collector.withDebug(risk.tag());
 //                collector.withRisk(ConflictTag.INTENT_SHARED, Severity.INFO);
                 risk.setSeverity(Severity.INFO);
-                collector.setFinished();
+//                collector.setFinished();
                 return;
             }
 
@@ -191,30 +226,5 @@ public interface Evaluator
             ConflictCollector collector
     ) {
         Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality()).attachTo(collector);
-    }
-
-    static void evaluateResource(
-            KeySemantic.Advanced subjectSemantic,
-            KeySemantic.Advanced opponentSemantic,
-            ConflictCollector collector
-    ) {
-        Resource sRes = subjectSemantic.resource();
-        Resource oRes = opponentSemantic.resource();
-        if (Resource.overlaps(sRes, oRes)) {
-            if (!(subjectSemantic.readOnly() && opponentSemantic.readOnly())) {
-                if (!subjectSemantic.readOnly() && !opponentSemantic.readOnly()) {
-                    if (!sRes.supportsConcurrentWrites) {
-                        collector.withRisk(ConflictTag.CONCURRENT_WRITE, Severity.SEVERE);
-                    }
-                }
-                else {
-                    collector.withRisk(ConflictTag.READ_WRITE,
-                                       sRes.supportsConcurrentWrites ? Severity.INFO : Severity.WARNING);
-                }
-            }
-            return;
-        }
-        // add debug tag?
-        return;
     }
 }

@@ -1,4 +1,4 @@
-package com.lnatit.chord.resource.semantic;
+package com.lnatit.chord.data.semantic;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

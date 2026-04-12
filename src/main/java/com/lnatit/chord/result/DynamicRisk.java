@@ -17,9 +17,17 @@ public abstract class DynamicRisk implements ConflictRisk
         return this.severity;
     }
 
-    public interface Escalatable
+    public static abstract class Escalatable extends DynamicRisk
     {
-        ConflictRisk escalate();
+        private boolean escalated = false;
+
+        protected Escalatable(Severity severity) {
+            super(severity);
+        }
+
+        public void escalate() {
+            this.escalated = true;
+        }
     }
 
     public static final class StateSubset extends DynamicRisk
@@ -46,7 +54,7 @@ public abstract class DynamicRisk implements ConflictRisk
         private final boolean subjectIsInterceptor;
 
         public InterceptInput(boolean subjectIsInterceptor) {
-            super(Severity.SAFE);
+            super(Severity.WARNING);
             this.subjectIsInterceptor = subjectIsInterceptor;
         }
 
@@ -63,7 +71,7 @@ public abstract class DynamicRisk implements ConflictRisk
     public static final class RaceCondition extends DynamicRisk
     {
         public RaceCondition() {
-            super(Severity.SAFE);
+            super(Severity.SEVERE);
         }
 
         @Override
@@ -91,17 +99,45 @@ public abstract class DynamicRisk implements ConflictRisk
         }
     }
 
-    public static final class DeferredRisk extends DynamicRisk
+    /**
+     * NONE + KEY
+     * <p>
+     * KEY Modality |   Severity
+     * -------------+-------------
+     *      HOLD    |   SAFE
+     *      TOGGLE  |   INFO
+     *      CYCLE   |   WARNING
+     *      PRESS   |   SEVERE
+     */
+    public static final class ContextLeak extends DynamicRisk
     {
-        private final boolean both;
+        private final boolean subjectIsModifier;
 
-        public DeferredRisk(boolean both) {
+        public ContextLeak(boolean subjectIsModifier) {
             super(Severity.SAFE);
-            this.both = both;
+            this.subjectIsModifier = subjectIsModifier;
         }
 
-        public boolean both() {
-            return both;
+        @Override
+        public ConflictTag tag() {
+            return ConflictTag.CONTEXT_LEAK;
+        }
+    }
+
+    /**
+     * KEY + KEY
+     * <p>
+     *      Modal   |   Severity
+     * -------------+-------------
+     *  HOLD + HOLD |   INFO
+     *  HOLD + *    |   WARNING
+     *  TOGGLE + T  |   WARNING
+     *      Others  |   SEVERE
+     */
+    public static final class DeferredRisk extends DynamicRisk
+    {
+        public DeferredRisk() {
+            super(Severity.INFO);
         }
 
         @Override
@@ -110,10 +146,23 @@ public abstract class DynamicRisk implements ConflictRisk
         }
     }
 
+    /**
+     * NONE + MOUSE
+     * <p>
+     * MOUSE Modal  |   Severity
+     * -------------+-------------
+     *      HOLD    |   SAFE
+     *      TOGGLE  |   INFO
+     *      CYCLE   |   WARNING
+     *      PRESS   |   SEVERE
+     */
     public static final class LoseFocus extends DynamicRisk
     {
-        public LoseFocus() {
+        private final boolean subjectIsModifier;
+
+        public LoseFocus(boolean subjectIsModifier) {
             super(Severity.SAFE);
+            this.subjectIsModifier = subjectIsModifier;
         }
 
         @Override
@@ -122,6 +171,14 @@ public abstract class DynamicRisk implements ConflictRisk
         }
     }
 
+    /**
+     * KEY + MOUSE
+     * <p>
+     *      Modal   |   Severity
+     * -------------+-------------
+     *  HOLD + HOLD |   WARNING
+     *      Others  |   SEVERE
+     */
     public static final class InputBlock extends DynamicRisk
     {
         public InputBlock() {

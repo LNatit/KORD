@@ -1,7 +1,7 @@
 package com.lnatit.chord.eval.mutex.tree;
 
 import com.lnatit.chord.eval.mutex.StateSet;
-import com.lnatit.chord.resource.mutex.MutexSet;
+import com.lnatit.chord.data.mutex.MutexSet;
 
 import java.util.List;
 

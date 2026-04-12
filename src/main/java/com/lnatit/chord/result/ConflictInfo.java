@@ -1,5 +1,6 @@
 package com.lnatit.chord.result;
 
+// TODO make it a factory instead of interface
 public sealed interface ConflictInfo permits ConflictRisk, ConflictInfo.MeltdownWrapper
 {
     void attachTo(ConflictCollector collector);

@@ -1,6 +1,6 @@
 package com.lnatit.chord;
 
-import com.lnatit.chord.resource.KeySemanticManager;
+import com.lnatit.chord.data.semantic.KeySemanticManager;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;

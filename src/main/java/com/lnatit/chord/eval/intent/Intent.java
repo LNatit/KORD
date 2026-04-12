@@ -5,6 +5,12 @@ import java.util.List;
 // TODO
 public interface Intent {
 
+    String name();
+
+    static Intent of(String name) {
+        //TODO
+        return () -> name;
+    }
 
 
 
@@ -18,16 +24,15 @@ public interface Intent {
 
 
 
-
-    static boolean hasShared(List<String> intents1, List<String> intents2) {
+    static boolean hasShared(List<Intent> intents1, List<Intent> intents2) {
         return false;
     }
 
-    static boolean contains(List<String> parent, List<String> subset) {
+    static boolean contains(List<Intent> parent, List<Intent> subset) {
         return false;
     }
 
-    static boolean isIdentical(List<String> intents1, List<String> intents2) {
+    static boolean isIdentical(List<Intent> intents1, List<Intent> intents2) {
         return false;
     }
 }

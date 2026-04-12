@@ -20,11 +20,12 @@ public record ConflictTag(String shortCode, boolean isDiagnostic)
 
     // R redirect mode
     public static final ConflictTag NO_REDIRECT = ConflictTag.simple("r_nr");
-    public static final ConflictTag CONTEXT_CLASH = ConflictTag.simple("r_cc");
+    public static final ConflictTag CONTEXT_LEAK = ConflictTag.simple("l_cl");
     public static final ConflictTag DEFERRED_RISK = ConflictTag.simple("r_dr");
-    public static final ConflictTag FOCUS_COLLISION = ConflictTag.simple("r_fc");
     public static final ConflictTag LOSE_FOCUS = ConflictTag.simple("r_lf");
+    public static final ConflictTag FOCUS_COLLISION = ConflictTag.simple("r_fc");
     public static final ConflictTag INPUT_BLOCK = ConflictTag.simple("r_ib");
+    public static final ConflictTag CONTEXT_CLASH = ConflictTag.simple("r_cc");
 
     // E resource access
     public static final ConflictTag CONCURRENT_WRITE = ConflictTag.simple("e_cw");
