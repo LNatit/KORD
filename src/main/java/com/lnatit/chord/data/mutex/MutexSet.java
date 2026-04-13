@@ -1,5 +1,8 @@
 package com.lnatit.chord.data.mutex;
 
+import com.lnatit.chord.Chord;
+
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,12 +28,25 @@ public record MutexSet(String namespace, List<String> mutexes) {
 
     public int bitmapOf(List<String> mutexes) {
         // TODO
-        return 0;
+        int bitmap = 0;
+        for (String mutex : mutexes) {
+            int index = this.mutexes.indexOf(mutex);
+            if (index == -1)
+                Chord.LOGGER.warn("Mutex '{}' not found in mutex set '{}', ignored.", mutex, namespace);
+            else
+                bitmap |= 1 << index;
+        }
+        bitmap &= getMask();
+        return bitmap;
     }
 
     public List<String> mutexesOf(int bitmap) {
-        // TODO
-        return List.of();
+        List<String> mutexes = new ArrayList<>();
+        for (int index = 0; index < this.mutexes.size(); index++) {
+            if ((1 << index & bitmap) !=  0)
+                mutexes.add(this.mutexes.get(index));
+        }
+        return mutexes;
     }
 
     @Override

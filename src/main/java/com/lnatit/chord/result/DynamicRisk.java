@@ -2,7 +2,7 @@ package com.lnatit.chord.result;
 
 import com.lnatit.chord.eval.Modality;
 
-// TODO maybe we should split dynamic with informational?
+// maybe we should split dynamic with informational?
 // Do we have pure informational?
 public abstract class DynamicRisk implements ConflictRisk
 {

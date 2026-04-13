@@ -80,7 +80,6 @@ public enum Modality {
 
     public static final AsymmetricEnumMatrix<Modality, ConflictRisk> MATRIX = new AsymmetricEnumMatrix<>(Modality.class, ConflictRisk.create(ConflictTag.OPERATION_MATCH, Severity.SAFE));
 
-    // Todo escalate severity when has tag
     static {
         MATRIX.putAll(HOLD, ConflictRisk.create(ConflictTag.TIMING_MISMATCH, Severity.INFO), PRESS, TOGGLE);
         MATRIX.put(PRESS, TOGGLE, ConflictRisk.create(ConflictTag.REPEAT_SWITCH, Severity.INFO));

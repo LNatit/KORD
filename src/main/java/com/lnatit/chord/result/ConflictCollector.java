@@ -1,9 +1,8 @@
 package com.lnatit.chord.result;
 
-import org.jetbrains.annotations.Nullable;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class ConflictCollector
 {
@@ -26,15 +25,13 @@ public class ConflictCollector
         this.risks.addAll(collector.risks);
     }
 
-    // TODO use Optional<R> later
-    @Nullable
-    public <R extends DynamicRisk> R getRisk(Class<R> type) {
+    public <R extends DynamicRisk> Optional<R> getRisk(Class<R> type) {
         for (ConflictRisk risk : risks) {
             if (type.isInstance(risk)) {
-                return type.cast(risk);
+                return Optional.of(type.cast(risk));
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     public void setFinished() {

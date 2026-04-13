@@ -127,10 +127,10 @@ public interface Evaluator
         boolean oi = opponentSemantic.intercept();
 
         if (si || oi) {
-            DynamicRisk.StateSubset risk = collector.getRisk(DynamicRisk.StateSubset.class);
-            if (risk != null && (risk.subjectIsSubset() == si || risk.subjectIsSubset() == !oi)) {
-                risk.escalate();
-                risk.setSeverity(si && oi ? Severity.WARNING : Severity.INFO);
+            Optional<DynamicRisk.StateSubset> risk = collector.getRisk(DynamicRisk.StateSubset.class);
+            if (risk.isPresent() && (risk.get().subjectIsSubset() == si || risk.get().subjectIsSubset() == !oi)) {
+                risk.get().escalate();
+                risk.get().setSeverity(si && oi ? Severity.WARNING : Severity.INFO);
                 collector.setFinished();
                 return;
             }
@@ -171,7 +171,7 @@ public interface Evaluator
         Resource sRes = subjectSemantic.resource();
         Resource oRes = opponentSemantic.resource();
         if (Resource.overlaps(sRes, oRes)) {
-            boolean isInterceptive = collector.getRisk(DynamicRisk.Interceptive.class) != null;
+            boolean isInterceptive = collector.getRisk(DynamicRisk.Interceptive.class).isPresent();
             if (!(subjectSemantic.readOnly() && opponentSemantic.readOnly())) {
                 if (!subjectSemantic.readOnly() && !opponentSemantic.readOnly()) {
                     if (!sRes.supportsConcurrentWrites()) {
@@ -202,9 +202,9 @@ public interface Evaluator
         List<Intent> sI = subjectSemantic.intents();
         List<Intent> oI = opponentSemantic.intents();
         if (Intent.hasShared(sI, oI)) {
-            DynamicRisk.Interceptive risk = collector.getRisk(DynamicRisk.Interceptive.class);
-            if (risk != null) {
-                risk.downgrade();
+            Optional<DynamicRisk.Interceptive> risk = collector.getRisk(DynamicRisk.Interceptive.class);
+            if (risk.isPresent()) {
+                risk.get().downgrade();
                 return;
             }
             // intent_shared
@@ -217,10 +217,8 @@ public interface Evaluator
             KeySemantic.Advanced opponentSemantic,
             ConflictCollector collector
     ) {
-        DynamicRisk.ModalJudged risk = collector.getRisk(DynamicRisk.ModalJudged.class);
-        if (risk != null) {
-            risk.acceptModality(subjectSemantic.modality(), opponentSemantic.modality());
-        }
+        Optional<DynamicRisk.ModalJudged> risk = collector.getRisk(DynamicRisk.ModalJudged.class);
+        risk.ifPresent(modalJudged -> modalJudged.acceptModality(subjectSemantic.modality(), opponentSemantic.modality()));
         collector.withRisk(Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality()));
     }
 }
