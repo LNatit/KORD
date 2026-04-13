@@ -56,7 +56,7 @@ public class Suck
 
     // Creates a creative tab with the id "suck:example_tab" for the example item, that is placed after the combat tab
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> EXAMPLE_TAB = CREATIVE_MODE_TABS.register("example_tab", () -> CreativeModeTab.builder()
-            .title(Component.translatable("itemGroup.suck")) //The language key for the title of your CreativeModeTab
+            .title(Component.translatable("itemGroup.suck")) //The language key for the title get your CreativeModeTab
             .withTabsBefore(CreativeModeTabs.COMBAT)
             .icon(() -> EXAMPLE_ITEM.get().getDefaultInstance())
             .displayItems((parameters, output) -> {

@@ -1,9 +1,9 @@
 package com.lnatit.chord.eval;
 
-import com.lnatit.chord.result.ConflictInfo;
 import com.lnatit.chord.result.ConflictRisk;
 import com.lnatit.chord.result.ConflictTag;
 import com.lnatit.chord.result.Severity;
+import com.lnatit.chord.util.AsymmetricEnumMatrix;
 import com.lnatit.chord.util.SymmetricEnumMatrix;
 
 /**
@@ -79,15 +79,15 @@ public enum Modality {
     // We combine HOLD with RELEASE, cuz hardly you see a pure RELEASE key
     PRESS, HOLD, TOGGLE, CYCLE;
 
-    public static final SymmetricEnumMatrix<Modality, ConflictInfo> MATRIX = new SymmetricEnumMatrix<>(Modality.class, ConflictRisk.of(ConflictTag.OPERATION_MATCH, Severity.SAFE));
+    public static final AsymmetricEnumMatrix<Modality, ConflictRisk> MATRIX = new AsymmetricEnumMatrix<>(Modality.class, ConflictRisk.create(ConflictTag.OPERATION_MATCH, Severity.SAFE));
 
     // Todo escalate severity when has tag
     static {
-        MATRIX.putAll(HOLD, ConflictRisk.of(ConflictTag.TIMING_MISMATCH, Severity.INFO), PRESS, TOGGLE);
-        MATRIX.put(PRESS, TOGGLE, ConflictRisk.of(ConflictTag.REPEAT_SWITCH, Severity.INFO));
-        MATRIX.put(HOLD, CYCLE, ConflictRisk.of(ConflictTag.TIMING_MISMATCH, Severity.WARNING));
-        MATRIX.put(PRESS, CYCLE, ConflictRisk.of(ConflictTag.REPEAT_SWITCH, Severity.WARNING));
-        MATRIX.put(TOGGLE, TOGGLE, ConflictRisk.of(ConflictTag.STATE_LOCK, Severity.WARNING));
-        MATRIX.putAll(CYCLE, ConflictRisk.of(ConflictTag.STATE_EXPLODE, Severity.SEVERE), TOGGLE, CYCLE);
+        MATRIX.putAll(HOLD, ConflictRisk.create(ConflictTag.TIMING_MISMATCH, Severity.INFO), PRESS, TOGGLE);
+        MATRIX.put(PRESS, TOGGLE, ConflictRisk.create(ConflictTag.REPEAT_SWITCH, Severity.INFO));
+        MATRIX.put(HOLD, CYCLE, ConflictRisk.create(ConflictTag.TIMING_MISMATCH, Severity.WARNING));
+        MATRIX.put(PRESS, CYCLE, ConflictRisk.create(ConflictTag.REPEAT_SWITCH, Severity.WARNING));
+        MATRIX.put(TOGGLE, TOGGLE, ConflictRisk.create(ConflictTag.STATE_LOCK, Severity.WARNING));
+        MATRIX.putAll(CYCLE, ConflictRisk.create(ConflictTag.STATE_EXPLODE, Severity.SEVERE), TOGGLE, CYCLE);
     }
 }

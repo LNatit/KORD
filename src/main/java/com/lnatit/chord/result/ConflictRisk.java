@@ -1,19 +1,26 @@
 package com.lnatit.chord.result;
 
-public non-sealed interface ConflictRisk extends ConflictInfo
+import com.lnatit.chord.util.Supplier;
+
+public interface ConflictRisk
 {
     ConflictTag tag();
 
     Severity severity();
 
-    default void attachTo(ConflictCollector collector) {
-        collector.withRisk(this);
+    static ConflictRisk create(ConflictTag tag, Severity severity) {
+        return of(tag, severity);
     }
 
-    static ConflictRisk of(ConflictTag tag, Severity severity) {
-        return new Static(tag, severity);
+    static Static of(ConflictTag tag, Severity severity) {
+        return new Static(tag, severity)
     }
 
-    record Static(ConflictTag tag, Severity severity) implements ConflictRisk
-    {}
+    record Static(ConflictTag tag, Severity severity) implements ConflictRisk, Supplier<ConflictRisk>
+    {
+        @Override
+        public ConflictRisk get() {
+            return this;
+        }
+    }
 }

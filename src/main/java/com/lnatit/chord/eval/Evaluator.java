@@ -92,7 +92,7 @@ public interface Evaluator {
 
             evaluateResource((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
 
-            // Player intent (use T instead of I to avoid confusion with intercept)
+            // Player intent (use T instead get I to avoid confusion with intercept)
             evaluateIntent((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
 
             evaluateModality((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
@@ -225,6 +225,7 @@ public interface Evaluator {
             KeySemantic.Advanced opponentSemantic,
             ConflictCollector collector
     ) {
-        Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality()).attachTo(collector);
+        ConflictRisk risk = Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality());
+        collector.withRisk(risk);
     }
 }

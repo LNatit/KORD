@@ -16,11 +16,11 @@ public class ConflictCollector
     }
 
     public ConflictCollector withRisk(ConflictTag tag, Severity severity) {
-        return this.withRisk(ConflictRisk.of(tag, severity));
+        return this.withRisk(ConflictRisk.create(tag, severity));
     }
 
     public ConflictCollector withDebug(ConflictTag debugTag) {
-        return this.withRisk(ConflictRisk.of(debugTag, Severity.SAFE));
+        return this.withRisk(ConflictRisk.create(debugTag, Severity.SAFE));
     }
 
     public ConflictCollector merge(ConflictCollector collector) {
