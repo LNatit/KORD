@@ -13,7 +13,7 @@ public interface ConflictRisk
     }
 
     static Static of(ConflictTag tag, Severity severity) {
-        return new Static(tag, severity)
+        return new Static(tag, severity);
     }
 
     record Static(ConflictTag tag, Severity severity) implements ConflictRisk, Supplier<ConflictRisk>

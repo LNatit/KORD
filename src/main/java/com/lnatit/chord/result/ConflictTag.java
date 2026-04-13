@@ -28,6 +28,8 @@ public record ConflictTag(String shortCode, boolean isDiagnostic)
     public static final ConflictTag CONTEXT_CLASH = ConflictTag.simple("r_cc");
 
     // E resource access
+    public static final ConflictTag RESOURCE_MUTEX = ConflictTag.debug("e_rm");
+    public static final ConflictTag CONCURRENT_ACCESS = ConflictTag.debug("e_ca");
     public static final ConflictTag CONCURRENT_WRITE = ConflictTag.simple("e_cw");
     public static final ConflictTag READ_WRITE = ConflictTag.simple("e_rw");
 

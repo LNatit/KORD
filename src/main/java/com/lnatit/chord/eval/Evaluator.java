@@ -10,7 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public interface Evaluator {
+public interface Evaluator
+{
     /**
      * @see KeyMapping#same(KeyMapping)
      */
@@ -26,7 +27,6 @@ public interface Evaluator {
 
         // User override
         Optional<ConflictResult> override = getUserOverride(subject, opponent);
-        // TODO add debug tag user_override (u_*o), distinguish user(u) builtin(b) creator(c) player(p)
         if (override.isPresent()) {
             return override.get();
         }
@@ -49,9 +49,9 @@ public interface Evaluator {
 
     static boolean isSameKey(KeyMapping subject, KeyMapping opponent) {
         return subject.getKey().equals(opponent.getKey())
-                && subject.getDefaultKeyModifier()
-                .equals(opponent.getDefaultKeyModifier())
-                && subject.getKeyModifier().equals(opponent.getKeyModifier());
+               && subject.getDefaultKeyModifier()
+                         .equals(opponent.getDefaultKeyModifier())
+               && subject.getKeyModifier().equals(opponent.getKeyModifier());
     }
 
     static boolean isContextOverlapping(IKeyConflictContext subjectContext, IKeyConflictContext opponentContext) {
@@ -59,7 +59,7 @@ public interface Evaluator {
     }
 
     static Optional<ConflictResult> getUserOverride(KeyMapping subject, KeyMapping opponent) {
-        // TODO to impl
+        // TODO add debug tag user_override (u_*o), distinguish user(u) builtin(b) creator(c) player(p)
         return Optional.empty();
     }
 
@@ -67,7 +67,6 @@ public interface Evaluator {
         ConflictCollector collector = new ConflictCollector();
 
         // State mutex
-        // TODO add deferred tag
         evaluateStateMutex(subject, opponent, collector);
         if (collector.finished()) {
             return collector;
@@ -96,30 +95,25 @@ public interface Evaluator {
             evaluateIntent((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
 
             evaluateModality((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
-
-//            evaluateCategory((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
         }
 
         return collector;
     }
 
-    static void evaluateStateMutex(
-            KeySemantic subject,
-            KeySemantic opponent,
-            ConflictCollector collector
-    ) {
+    static void evaluateStateMutex(KeySemantic subject, KeySemantic opponent, ConflictCollector collector) {
         StateSet subjectStates = subject.states();
         StateSet opponentStates = opponent.states();
         if (StateSet.isMutex(subjectStates, opponentStates)) {
             // state_mutex
             collector.withDebug(ConflictTag.STATE_MUTEX);
             collector.setFinished();
-        } else {
-            boolean subjectIsSubset = subjectStates.isProperSubsetOf(opponentStates);
-            if (subjectIsSubset || opponentStates.isProperSubsetOf(subjectStates)) {
-                // state_subset
-                collector.withRisk(new DynamicRisk.StateSubset(subjectIsSubset));
-            }
+            return;
+        }
+
+        boolean subjectIsSubset = subjectStates.isProperSubsetOf(opponentStates);
+        if (subjectIsSubset || opponentStates.isProperSubsetOf(subjectStates)) {
+            // state_subset
+            collector.withRisk(new DynamicRisk.StateSubset(subjectIsSubset));
         }
     }
 
@@ -133,13 +127,10 @@ public interface Evaluator {
         boolean oi = opponentSemantic.intercept();
 
         if (si || oi) {
-            // TODO check whether race condition need similar logic
             DynamicRisk.StateSubset risk = collector.getRisk(DynamicRisk.StateSubset.class);
             if (risk != null && (risk.subjectIsSubset() == si || risk.subjectIsSubset() == !oi)) {
-                // partial_override
-                // TODO double check
-//                    collector.withDebug(risk.tag());
-                collector.withRisk(ConflictTag.PARTIAL_OVERRIDE, Severity.INFO);
+                risk.escalate();
+                risk.setSeverity(si && oi ? Severity.WARNING : Severity.INFO);
                 collector.setFinished();
                 return;
             }
@@ -180,20 +171,27 @@ public interface Evaluator {
         Resource sRes = subjectSemantic.resource();
         Resource oRes = opponentSemantic.resource();
         if (Resource.overlaps(sRes, oRes)) {
+            boolean isInterceptive = collector.getRisk(DynamicRisk.Interceptive.class) != null;
             if (!(subjectSemantic.readOnly() && opponentSemantic.readOnly())) {
                 if (!subjectSemantic.readOnly() && !opponentSemantic.readOnly()) {
                     if (!sRes.supportsConcurrentWrites()) {
-                        collector.withRisk(ConflictTag.CONCURRENT_WRITE, Severity.SEVERE);
+                        collector.withRisk(ConflictTag.CONCURRENT_WRITE,
+                                           isInterceptive ? Severity.INFO : Severity.SEVERE);
                     }
-                } else {
-                    collector.withRisk(ConflictTag.READ_WRITE,
-                            sRes.supportsConcurrentWrites() ? Severity.INFO : Severity.WARNING);
                 }
+                else {
+                    collector.withRisk(ConflictTag.READ_WRITE,
+                                       sRes.supportsConcurrentWrites() || isInterceptive
+                                       ? Severity.INFO
+                                       : Severity.WARNING);
+                }
+            }
+            else {
+                collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
             }
             return;
         }
-        // TODO add debug tag?
-        return;
+        collector.withDebug(ConflictTag.RESOURCE_MUTEX);
     }
 
     static void evaluateIntent(
@@ -204,19 +202,13 @@ public interface Evaluator {
         List<Intent> sI = subjectSemantic.intents();
         List<Intent> oI = opponentSemantic.intents();
         if (Intent.hasShared(sI, oI)) {
-            DynamicRisk.InterceptInput risk = collector.getRisk(DynamicRisk.InterceptInput.class);
+            DynamicRisk.Interceptive risk = collector.getRisk(DynamicRisk.Interceptive.class);
             if (risk != null) {
-                // intent_shared
-                // TODO double check
-//                collector.withDebug(risk.tag());
-//                collector.withRisk(ConflictTag.INTENT_SHARED, Severity.INFO);
-                risk.setSeverity(Severity.INFO);
-//                collector.setFinished();
+                risk.downgrade();
                 return;
             }
-
             // intent_shared
-            collector.withRisk(new DynamicRisk.IntentShare(Intent.isIdentical(sI, oI)));
+            collector.withRisk(ConflictTag.INTENT_SHARE, Intent.isIdentical(sI, oI) ? Severity.SAFE : Severity.INFO);
         }
     }
 
@@ -225,7 +217,10 @@ public interface Evaluator {
             KeySemantic.Advanced opponentSemantic,
             ConflictCollector collector
     ) {
-        ConflictRisk risk = Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality());
-        collector.withRisk(risk);
+        DynamicRisk.ModalJudged risk = collector.getRisk(DynamicRisk.ModalJudged.class);
+        if (risk != null) {
+            risk.acceptModality(subjectSemantic.modality(), opponentSemantic.modality());
+        }
+        collector.withRisk(Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality()));
     }
 }

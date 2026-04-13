@@ -1,5 +1,9 @@
 package com.lnatit.chord.result;
 
+import com.lnatit.chord.eval.Modality;
+
+// TODO maybe we should split dynamic with informational?
+// Do we have pure informational?
 public abstract class DynamicRisk implements ConflictRisk
 {
     private Severity severity;
@@ -17,22 +21,10 @@ public abstract class DynamicRisk implements ConflictRisk
         return this.severity;
     }
 
-    public static abstract class Escalatable extends DynamicRisk
-    {
-        private boolean escalated = false;
-
-        protected Escalatable(Severity severity) {
-            super(severity);
-        }
-
-        public void escalate() {
-            this.escalated = true;
-        }
-    }
-
     public static final class StateSubset extends DynamicRisk
     {
         private final boolean subjectIsSubset;
+        private boolean escalated = false;
 
         public StateSubset(boolean subjectIsSubset) {
             super(Severity.SAFE);
@@ -45,11 +37,26 @@ public abstract class DynamicRisk implements ConflictRisk
 
         @Override
         public ConflictTag tag() {
-            return ConflictTag.STATE_SUBSET;
+            return this.escalated ? ConflictTag.PARTIAL_OVERRIDE : ConflictTag.STATE_SUBSET;
+        }
+
+        public void escalate() {
+            this.escalated = true;
         }
     }
 
-    public static final class InterceptInput extends DynamicRisk
+    public static abstract class Interceptive extends DynamicRisk {
+        protected Interceptive(Severity severity) {
+            super(severity);
+        }
+
+        public void downgrade() {
+            this.setSeverity(this.severity().downgrade());
+        }
+    }
+
+    // 7.同资源独占不报CW.和RW》8.匹配的意图降级
+    public static final class InterceptInput extends Interceptive
     {
         private final boolean subjectIsInterceptor;
 
@@ -68,7 +75,8 @@ public abstract class DynamicRisk implements ConflictRisk
         }
     }
 
-    public static final class RaceCondition extends DynamicRisk
+    // 7.同资源独占不报CW.和RW》8.匹配的意图降级
+    public static final class RaceCondition extends Interceptive
     {
         public RaceCondition() {
             super(Severity.SEVERE);
@@ -80,22 +88,37 @@ public abstract class DynamicRisk implements ConflictRisk
         }
     }
 
-    public static final class IntentShare extends DynamicRisk
+    public static abstract class ModalJudged extends DynamicRisk
     {
-        private final boolean identical;
-
-        public IntentShare(boolean identical) {
-            super(Severity.SAFE);
-            this.identical = identical;
+        protected ModalJudged(Severity severity) {
+            super(severity);
         }
 
-        public boolean identical() {
-            return identical;
+        public abstract void acceptModality(Modality subject, Modality opponent);
+    }
+
+    public static abstract class SingleModifier extends ModalJudged
+    {
+        private final boolean subjectIsModifier;
+
+        protected SingleModifier(boolean subjectIsModifier) {
+            super(Severity.SAFE);
+            this.subjectIsModifier = subjectIsModifier;
+        }
+
+        public boolean subjectIsModifier() {
+            return subjectIsModifier;
         }
 
         @Override
-        public ConflictTag tag() {
-            return ConflictTag.INTENT_SHARE;
+        public void acceptModality(Modality subject, Modality opponent) {
+            Modality modifier = this.subjectIsModifier() ? subject : opponent;
+            switch (modifier) {
+                case HOLD -> setSeverity(Severity.SAFE);
+                case TOGGLE -> setSeverity(Severity.INFO);
+                case CYCLE -> setSeverity(Severity.WARNING);
+                case PRESS -> setSeverity(Severity.SEVERE);
+            }
         }
     }
 
@@ -104,18 +127,15 @@ public abstract class DynamicRisk implements ConflictRisk
      * <p>
      * KEY Modality |   Severity
      * -------------+-------------
-     *      HOLD    |   SAFE
-     *      TOGGLE  |   INFO
-     *      CYCLE   |   WARNING
-     *      PRESS   |   SEVERE
+     * HOLD    |   SAFE
+     * TOGGLE  |   INFO
+     * CYCLE   |   WARNING
+     * PRESS   |   SEVERE
      */
-    public static final class ContextLeak extends DynamicRisk
+    public static final class ContextLeak extends SingleModifier
     {
-        private final boolean subjectIsModifier;
-
         public ContextLeak(boolean subjectIsModifier) {
-            super(Severity.SAFE);
-            this.subjectIsModifier = subjectIsModifier;
+            super(subjectIsModifier);
         }
 
         @Override
@@ -127,14 +147,14 @@ public abstract class DynamicRisk implements ConflictRisk
     /**
      * KEY + KEY
      * <p>
-     *      Modal   |   Severity
+     * Modal   |   Severity
      * -------------+-------------
-     *  HOLD + HOLD |   INFO
-     *  HOLD + *    |   WARNING
-     *  TOGGLE + T  |   WARNING
-     *      Others  |   SEVERE
+     * HOLD + HOLD |   INFO
+     * HOLD + *    |   WARNING
+     * TOGGLE + T  |   WARNING
+     * Others  |   SEVERE
      */
-    public static final class DeferredRisk extends DynamicRisk
+    public static final class DeferredRisk extends ModalJudged
     {
         public DeferredRisk() {
             super(Severity.INFO);
@@ -144,6 +164,20 @@ public abstract class DynamicRisk implements ConflictRisk
         public ConflictTag tag() {
             return ConflictTag.DEFERRED_RISK;
         }
+
+        @Override
+        public void acceptModality(Modality subject, Modality opponent) {
+            if (subject == Modality.HOLD && opponent == Modality.HOLD) {
+                setSeverity(Severity.INFO);
+            }
+            else if (subject == Modality.HOLD
+                     || opponent == Modality.HOLD
+                     || subject == Modality.TOGGLE && opponent == Modality.TOGGLE) {
+                setSeverity(Severity.WARNING);
+            } else {
+                setSeverity(Severity.SEVERE);
+            }
+        }
     }
 
     /**
@@ -151,18 +185,15 @@ public abstract class DynamicRisk implements ConflictRisk
      * <p>
      * MOUSE Modal  |   Severity
      * -------------+-------------
-     *      HOLD    |   SAFE
-     *      TOGGLE  |   INFO
-     *      CYCLE   |   WARNING
-     *      PRESS   |   SEVERE
+     * HOLD    |   SAFE
+     * TOGGLE  |   INFO
+     * CYCLE   |   WARNING
+     * PRESS   |   SEVERE
      */
-    public static final class LoseFocus extends DynamicRisk
+    public static final class LoseFocus extends SingleModifier
     {
-        private final boolean subjectIsModifier;
-
         public LoseFocus(boolean subjectIsModifier) {
-            super(Severity.SAFE);
-            this.subjectIsModifier = subjectIsModifier;
+            super(subjectIsModifier);
         }
 
         @Override
@@ -174,20 +205,30 @@ public abstract class DynamicRisk implements ConflictRisk
     /**
      * KEY + MOUSE
      * <p>
-     *      Modal   |   Severity
+     * Modal   |   Severity
      * -------------+-------------
-     *  HOLD + HOLD |   WARNING
-     *      Others  |   SEVERE
+     * HOLD + HOLD |   WARNING
+     * Others  |   SEVERE
      */
-    public static final class InputBlock extends DynamicRisk
+    public static final class InputBlock extends ModalJudged
     {
         public InputBlock() {
-            super(Severity.SAFE);
+            super(Severity.WARNING);
         }
 
         @Override
         public ConflictTag tag() {
             return ConflictTag.INPUT_BLOCK;
+        }
+
+        @Override
+        public void acceptModality(Modality subject, Modality opponent) {
+            if (subject == Modality.HOLD && opponent == Modality.HOLD) {
+                setSeverity(Severity.WARNING);
+            }
+            else {
+                setSeverity(Severity.SEVERE);
+            }
         }
     }
 }

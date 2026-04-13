@@ -8,13 +8,14 @@ import java.util.List;
 public record LeafNode(MutexSet mutexSet, int bitmap) implements TreeNode
 {
     public static LeafNode of(String namespace, List<String> mutexes) {
-        // TODO
+        MutexSet mutex = MutexSet.get(namespace);
+        return new LeafNode(mutex, mutex.bitmapOf(mutexes));
     }
 
 
     @Override
     public StateSet toStateSet() {
-        return StateSet.HyperRect.singleton(this.mutexSet(), this.bitmap());
+        return StateSet.singleton(this.mutexSet(), this.bitmap());
     }
 
     public String namespace() {

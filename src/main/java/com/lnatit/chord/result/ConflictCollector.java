@@ -10,24 +10,23 @@ public class ConflictCollector
     private boolean finished = false;
     private final List<ConflictRisk> risks = new ArrayList<>();
 
-    public ConflictCollector withRisk(ConflictRisk risk) {
+    public void withRisk(ConflictRisk risk) {
         this.risks.add(risk);
-        return this;
     }
 
-    public ConflictCollector withRisk(ConflictTag tag, Severity severity) {
-        return this.withRisk(ConflictRisk.create(tag, severity));
+    public void withRisk(ConflictTag tag, Severity severity) {
+        this.withRisk(ConflictRisk.create(tag, severity));
     }
 
-    public ConflictCollector withDebug(ConflictTag debugTag) {
-        return this.withRisk(ConflictRisk.create(debugTag, Severity.SAFE));
+    public void withDebug(ConflictTag debugTag) {
+        this.withRisk(ConflictRisk.create(debugTag, Severity.SAFE));
     }
 
-    public ConflictCollector merge(ConflictCollector collector) {
+    public void merge(ConflictCollector collector) {
         this.risks.addAll(collector.risks);
-        return this;
     }
 
+    // TODO use Optional<R> later
     @Nullable
     public <R extends DynamicRisk> R getRisk(Class<R> type) {
         for (ConflictRisk risk : risks) {

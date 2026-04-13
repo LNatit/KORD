@@ -7,6 +7,10 @@ import java.util.Map;
 public record MutexSet(String namespace, List<String> mutexes) {
     private static final Map<String, MutexSet> ALL_SETS = new HashMap<>();
 
+    public static MutexSet get(String namespace) {
+        return ALL_SETS.get(namespace);
+    }
+
     public MutexSet(String namespace, List<String> mutexes) {
         if (mutexes.size() > 32)
             throw new IllegalArgumentException("A mutex set cannot contain more than 32 mutexes");

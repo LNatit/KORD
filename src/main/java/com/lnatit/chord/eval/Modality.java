@@ -4,7 +4,6 @@ import com.lnatit.chord.result.ConflictRisk;
 import com.lnatit.chord.result.ConflictTag;
 import com.lnatit.chord.result.Severity;
 import com.lnatit.chord.util.AsymmetricEnumMatrix;
-import com.lnatit.chord.util.SymmetricEnumMatrix;
 
 /**
  * <h3>模态定义缩写：</h3>
