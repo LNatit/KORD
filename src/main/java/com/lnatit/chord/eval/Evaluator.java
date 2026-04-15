@@ -18,7 +18,7 @@ public interface Evaluator
     static ConflictResult conflicts(KeyMapping subject, KeyMapping opponent) {
         ConflictCollector collector = new ConflictCollector();
 
-        // Physical Key
+        // Physical Pair
         if (!isSameKey(subject, opponent)) {
             // hardware_mismatch
             collector.withDebug(ConflictTag.HARDWARE_MISMATCH);
@@ -26,7 +26,7 @@ public interface Evaluator
         }
 
         // User override
-        Optional<ConflictResult> override = getUserOverride(subject, opponent);
+        Optional<ConflictResult> override = OverrideManager.getOverride(subject, opponent);
         if (override.isPresent()) {
             return override.get();
         }
@@ -56,11 +56,6 @@ public interface Evaluator
 
     static boolean isContextOverlapping(IKeyConflictContext subjectContext, IKeyConflictContext opponentContext) {
         return subjectContext.conflicts(opponentContext) || opponentContext.conflicts(subjectContext);
-    }
-
-    static Optional<ConflictResult> getUserOverride(KeyMapping subject, KeyMapping opponent) {
-        // TODO add debug tag user_override (u_*o), distinguish user(u) builtin(b) creator(c) player(p)
-        return Optional.empty();
     }
 
     static ConflictCollector eval(KeySemantic subject, KeySemantic opponent) {

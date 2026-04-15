@@ -1,4 +1,4 @@
-package com.lnatit.chord.data.semantic;
+package com.lnatit.chord.data;
 
 import net.neoforged.neoforgespi.language.MavenVersionAdapter;
 import org.apache.maven.artifact.versioning.ArtifactVersion;

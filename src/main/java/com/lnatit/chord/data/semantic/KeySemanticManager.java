@@ -3,6 +3,12 @@ package com.lnatit.chord.data.semantic;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.lnatit.chord.Chord;
+import com.lnatit.chord.data.Codecs;
+import com.lnatit.chord.eval.SemanticalKey;
+import com.lnatit.chord.eval.context.IKeyContext;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -21,11 +27,41 @@ public class KeySemanticManager extends SimpleJsonResourceReloadListener {
     }
 
     @Override
-    protected void apply(Map<ResourceLocation, JsonElement> object, ResourceManager resourceManager, ProfilerFiller profiler) {
+    protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager resourceManager, ProfilerFiller profiler) {
+        profiler.push("chord_key_semantics");
 
+        for (Map.Entry<ResourceLocation, JsonElement> entry : map.entrySet()) {
+            ResourceLocation id = entry.getKey();
+            JsonElement json = entry.getValue();
+            DataResult<KeyDefinitions> result = Codecs.KEYS_CODEC.parse(JsonOps.INSTANCE, json);
+            if (result.isError()) {
+                Chord.LOGGER.warn("Failed to parse key definitions in '{}': {}", id, result.error().orElseThrow());
+                continue;
+            }
+            KeyDefinitions definitions = result.getOrThrow();
+//            KeyDefinitions definitions = GSON.fromJson(json, KeyDefinitions.class);
+
+            Chord.LOGGER.debug("Inspecting key definitions in '{}'...", id);
+            if (!definitions.checkValid()) {
+                Chord.LOGGER.info("Pair definitions in '{}' is invalid and will be ignored.", id);
+                continue;
+            }
+            for (KeyDefinitions.KeyDefinition keyDef : definitions.keys()) {
+                KeyMapping key = SemanticalKey.lookup(keyDef.name());
+                if (key == null) {
+                    Chord.LOGGER.warn("Pair '{}' not found for key semantics '{}', ignored.", keyDef.name(), id);
+                    continue;
+                }
+                for (KeyDefinitions.SemanticEntry sematic : keyDef.semantics()) {
+                    for (IKeyContext context : sematic.contexts()) {
+                        ((SemanticalKey) key).chord$addSemantic(context, sematic.semantic());
+                    }
+                }
+            }
+            Chord.LOGGER.info("Pair definitions in '{}' loaded with {} valid keys.", id, definitions.keys().size());
+        }
+
+        profiler.pop();
     }
 
-    private static KeyMapping lookup(String name) {
-        return KeyMapping.ALL.get(name);
-    }
 }

@@ -1,5 +1,7 @@
 package com.lnatit.chord.data.semantic;
 
+import com.lnatit.chord.Chord;
+import com.lnatit.chord.data.Versioned;
 import com.lnatit.chord.eval.KeySemantic;
 import com.lnatit.chord.eval.context.IKeyContext;
 import net.neoforged.fml.ModContainer;
@@ -17,15 +19,21 @@ public record KeyDefinitions(int version,
     public boolean checkValid() {
         Optional<? extends ModContainer> container = ModList.get().getModContainerById(modid());
         if (container.isEmpty()) {
+            Chord.LOGGER.debug("Mod '{}' not found for key definitions, ignored.", modid());
             return false;
         }
 
         ArtifactVersion mod_version = container.get().getModInfo().getVersion();
         if (mod_version_range().isPresent() && Versioned.versionOutOfRange(mod_version, mod_version_range().get())) {
+            Chord.LOGGER.debug("Mod '{}' version '{}' does not satisfy the version requirement '{}' for key definitions, ignored.", modid(), mod_version, mod_version_range().get());
             return false;
         }
         keys().removeIf(k -> k.isInvalid(mod_version));
-        return !keys().isEmpty();
+        if (keys().isEmpty()) {
+            Chord.LOGGER.debug("All key definitions of mod '{}' are invalid for mod version '{}', ignored.", modid(), mod_version);
+            return false;
+        }
+        return true;
     }
 
     public record KeyDefinition(String name,
