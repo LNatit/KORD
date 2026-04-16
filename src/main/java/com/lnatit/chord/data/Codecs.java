@@ -3,13 +3,13 @@ package com.lnatit.chord.data;
 import com.lnatit.chord.eval.KeySemantic;
 import com.lnatit.chord.eval.Modality;
 import com.lnatit.chord.eval.RedirectMode;
-import com.lnatit.chord.eval.Resource;
 import com.lnatit.chord.eval.context.IKeyContext;
 import com.lnatit.chord.eval.context.KeyContext;
 import com.lnatit.chord.eval.intent.Intent;
 import com.lnatit.chord.eval.mutex.StateSet;
 import com.lnatit.chord.data.semantic.KeyDefinitions;
 import com.lnatit.chord.eval.mutex.tree.*;
+import com.lnatit.chord.eval.resource.Resource;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
@@ -33,37 +33,31 @@ public interface Codecs {
     // TODO optimize listCodec
     Codec<StateSet> STATES_CODEC = TREE_CODEC.xmap(TreeNode::toStateSet, stateSet -> new AndNode(List.of()));
     Codec<RedirectMode> REDIRECT_CODEC = enumCodec(RedirectMode.class).orElse(RedirectMode.NONE);
-    Codec<Resource> RESOURCE_CODEC = Codec.STRING.xmap(Resource::of, Resource::id);
+    Codec<Resource> RESOURCE_CODEC = Codec.STRING.xmap(Resource::of, Resource::path);
     Codec<Intent> INTENT_CODEC = Codec.STRING.xmap(Intent::of, Intent::name);
-//    Codec<IntentSet> INTENTS_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-//            INTENT_CODEC.listOf().fieldOf("intents").forGetter(IntentSet::intents)
-//    ).apply(inst, IntentSet::new));
     Codec<Modality> MODALITY_CODEC = enumCodec(Modality.class).orElse(Modality.PRESS);
 
-    Codec<KeySemantic.Simple> SIMPLE_CODEC;
-    Codec<KeySemantic.Advanced> ADVANCED_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-            STATES_CODEC.fieldOf("states").forGetter(KeySemantic.Advanced::states),
-            OPTIONAL_BOOL_CODEC.fieldOf("intercept").forGetter(KeySemantic.Advanced::intercept),
-            REDIRECT_CODEC.fieldOf("redirect_mode").forGetter(KeySemantic.Advanced::redirectMode),
-            RESOURCE_CODEC.fieldOf("resource").forGetter(KeySemantic.Advanced::resource),
-            OPTIONAL_BOOL_CODEC.fieldOf("read_only").forGetter(KeySemantic.Advanced::readOnly),
-            INTENT_CODEC.listOf().fieldOf("intents").forGetter(KeySemantic.Advanced::intents),
-            MODALITY_CODEC.fieldOf("modality").forGetter(KeySemantic.Advanced::modality)).apply(inst, KeySemantic.Advanced::of));
-
-    Codec<IKeyContext.Lookup> LOOKUP_CODEC;
+//    Codec<IKeyContext.Lookup> LOOKUP_CODEC;
     Codec<KeyContext> CONTEXT_CODEC = enumCodec(KeyContext.class).orElse(KeyContext.AS_IS);
 
-    Codec<? extends KeySemantic> SEMANTIC_CODEC = ADVANCED_CODEC;
     Codec<? extends IKeyContext> ICONTEXT_CODEC = CONTEXT_CODEC;
+    Codec<KeySemantic> SEMANTIC_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            STATES_CODEC.fieldOf("states").forGetter(KeySemantic::states),
+            OPTIONAL_BOOL_CODEC.fieldOf("intercept").forGetter(KeySemantic::intercept),
+            REDIRECT_CODEC.fieldOf("redirect_mode").forGetter(KeySemantic::redirectMode),
+            RESOURCE_CODEC.fieldOf("resource").forGetter(KeySemantic::resource),
+            OPTIONAL_BOOL_CODEC.fieldOf("read_only").forGetter(KeySemantic::readOnly),
+            INTENT_CODEC.listOf().fieldOf("intents").forGetter(KeySemantic::intents),
+            MODALITY_CODEC.fieldOf("modality").forGetter(KeySemantic::modality)).apply(inst, KeySemantic::new));
 
     Codec<KeyDefinitions.SemanticEntry> SEMANTIC_ENTRY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             ((Codec<IKeyContext>) ICONTEXT_CODEC).listOf().fieldOf("contexts").forGetter(KeyDefinitions.SemanticEntry::contexts),
             Codec.STRING.optionalFieldOf("mod_version_range").forGetter(KeyDefinitions.SemanticEntry::mod_version_range),
-            ((Codec<KeySemantic>) SEMANTIC_CODEC).fieldOf("semantic").forGetter(KeyDefinitions.SemanticEntry::semantic)
+            (SEMANTIC_CODEC).fieldOf("semantic").forGetter(KeyDefinitions.SemanticEntry::semantic)
     ).apply(inst, KeyDefinitions.SemanticEntry::new));
 
     Codec<KeyDefinitions.KeyDefinition> KEY_DEFINITION_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-            Codec.STRING.fieldOf("name").forGetter(KeyDefinitions.KeyDefinition::name),
+            Codec.STRING.fieldOf("path").forGetter(KeyDefinitions.KeyDefinition::name),
             Codec.STRING.optionalFieldOf("mod_version_range").forGetter(KeyDefinitions.KeyDefinition::mod_version_range),
             SEMANTIC_ENTRY_CODEC.listOf().fieldOf("semantics").forGetter(KeyDefinitions.KeyDefinition::semantics)
     ).apply(inst, KeyDefinitions.KeyDefinition::new));

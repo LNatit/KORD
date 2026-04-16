@@ -2,6 +2,7 @@ package com.lnatit.chord.eval;
 
 import com.lnatit.chord.eval.intent.Intent;
 import com.lnatit.chord.eval.mutex.StateSet;
+import com.lnatit.chord.eval.resource.Resource;
 import com.lnatit.chord.result.*;
 import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
@@ -79,18 +80,12 @@ public interface Evaluator
             return collector;
         }
 
-        boolean advanced = canApplyAdvancedLogic(subject, opponent);
-        if (advanced) {
-            assert subject instanceof KeySemantic.Advanced;
-            assert opponent instanceof KeySemantic.Advanced;
+        evaluateResource(subject, opponent, collector);
 
-            evaluateResource((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
+        // Player intent (use T instead get I to avoid confusion with intercept)
+        evaluateIntent(subject, opponent, collector);
 
-            // Player intent (use T instead get I to avoid confusion with intercept)
-            evaluateIntent((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
-
-            evaluateModality((KeySemantic.Advanced) subject, (KeySemantic.Advanced) opponent, collector);
-        }
+        evaluateModality(subject, opponent, collector);
 
         return collector;
     }
@@ -154,13 +149,9 @@ public interface Evaluator
         info.attachTo(collector);
     }
 
-    static boolean canApplyAdvancedLogic(KeySemantic semantic1, KeySemantic semantic2) {
-        return semantic1 instanceof KeySemantic.Advanced && semantic2 instanceof KeySemantic.Advanced;
-    }
-
     static void evaluateResource(
-            KeySemantic.Advanced subjectSemantic,
-            KeySemantic.Advanced opponentSemantic,
+            KeySemantic subjectSemantic,
+            KeySemantic opponentSemantic,
             ConflictCollector collector
     ) {
         Resource sRes = subjectSemantic.resource();
@@ -190,8 +181,8 @@ public interface Evaluator
     }
 
     static void evaluateIntent(
-            KeySemantic.Advanced subjectSemantic,
-            KeySemantic.Advanced opponentSemantic,
+            KeySemantic subjectSemantic,
+            KeySemantic opponentSemantic,
             ConflictCollector collector
     ) {
         List<Intent> sI = subjectSemantic.intents();
@@ -208,8 +199,8 @@ public interface Evaluator
     }
 
     static void evaluateModality(
-            KeySemantic.Advanced subjectSemantic,
-            KeySemantic.Advanced opponentSemantic,
+            KeySemantic subjectSemantic,
+            KeySemantic opponentSemantic,
             ConflictCollector collector
     ) {
         Optional<DynamicRisk.ModalJudged> risk = collector.getRisk(DynamicRisk.ModalJudged.class);
