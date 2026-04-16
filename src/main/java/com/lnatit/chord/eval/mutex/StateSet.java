@@ -133,8 +133,12 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
 
         @Override
         public int hashCode() {
-            // TODO
-            return 0;
+            if (this.isFull()) return 0xFFFFFFFF;
+            int hash = 0;
+            for (Object2IntMap.Entry<MutexSet> entry : this.mutexSetToBitmap().object2IntEntrySet()) {
+                hash |= entry.getKey().hashCodeOf(entry.getIntValue());
+            }
+            return hash;
         }
 
         private boolean isSubsetOfRect(HyperRect other) {
@@ -242,8 +246,12 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
 
         @Override
         public int hashCode() {
-            // TODO
-            return 0;
+//            int hash = 0;
+//            if (this.isEmpty()) return hash;
+//            for (HyperRect rect : this.rects()) {
+//                hash |= rect.hashCode();
+//            }
+//            return hash;
         }
     }
 

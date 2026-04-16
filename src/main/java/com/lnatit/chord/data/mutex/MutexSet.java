@@ -49,6 +49,17 @@ public record MutexSet(String namespace, List<String> mutexes) {
         return mutexes;
     }
 
+    public int hashCodeOf(int bitmap) {
+        if (bitmap == 0) return 0;
+
+        int filled = 0;
+        for (int i = 0; i < 32; i += mutexes.size()) {
+            filled |= bitmap << i;
+        }
+
+        return filled & hashCode();
+    }
+
     @Override
     public int hashCode() {
         return namespace.hashCode();
