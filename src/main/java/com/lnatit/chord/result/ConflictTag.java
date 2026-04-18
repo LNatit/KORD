@@ -45,6 +45,12 @@ public record ConflictTag(String shortCode, boolean isDiagnostic)
     public static final ConflictTag STATE_LOCK = ConflictTag.simple("m_sl");
     public static final ConflictTag STATE_EXPLODE = ConflictTag.simple("m_se");
 
+    // U override source
+    public static final ConflictTag USER_OVERRIDE = ConflictTag.debug("u_uo");
+    public static final ConflictTag BUILTIN_OVERRIDE = ConflictTag.debug("u_bo");
+    public static final ConflictTag CREATOR_OVERRIDE = ConflictTag.debug("u_co");
+    public static final ConflictTag PLAYER_OVERRIDE = ConflictTag.debug("u_po");
+
     static ConflictTag debug(String shortCode) {
         return new ConflictTag(shortCode, true);
     }

@@ -3,7 +3,7 @@ package com.lnatit.chord.data;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.lnatit.chord.data.mutex.MutexDefinition;
-import com.lnatit.chord.data.mutex.MutexSet;
+import com.lnatit.chord.data.override.OverrideDefinition;
 import com.lnatit.chord.eval.KeySemantic;
 import com.lnatit.chord.eval.Modality;
 import com.lnatit.chord.eval.RedirectMode;
@@ -14,6 +14,10 @@ import com.lnatit.chord.eval.mutex.StateSet;
 import com.lnatit.chord.data.semantic.KeyDefinitions;
 import com.lnatit.chord.eval.mutex.tree.*;
 import com.lnatit.chord.eval.resource.Resource;
+import com.lnatit.chord.result.ConflictResult;
+import com.lnatit.chord.result.ConflictRisk;
+import com.lnatit.chord.result.ConflictTag;
+import com.lnatit.chord.result.Severity;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
@@ -24,15 +28,38 @@ public interface Codecs {
 
     Codec<Boolean> OPTIONAL_BOOL_CODEC = Codec.BOOL.orElse(false);
 
-    Codec<MutexSet> MUTEX_SET_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-            Codec.STRING.fieldOf("namespace").forGetter(MutexSet::namespace),
-            Codec.STRING.listOf().fieldOf("mutexes").forGetter(MutexSet::mutexes)
-    ).apply(inst, MutexSet::new));
+    Codec<Severity> SEVERITY_CODEC = enumCodec(Severity.class);
+
+    Codec<ConflictRisk.Static> CONFLICT_RISK_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            Codec.STRING.fieldOf("tag").forGetter(risk -> risk.tag().shortCode()),
+            OPTIONAL_BOOL_CODEC.optionalFieldOf("is_diagnostic", false).forGetter(risk -> risk.tag().isDiagnostic()),
+            SEVERITY_CODEC.fieldOf("severity").forGetter(ConflictRisk.Static::severity)
+    ).apply(inst, (tag, isDiagnostic, severity) ->
+            ConflictRisk.of(new ConflictTag(tag, isDiagnostic), severity)));
+
+    Codec<ConflictResult> CONFLICT_RESULT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            SEVERITY_CODEC.fieldOf("severity").forGetter(ConflictResult::severity),
+            CONFLICT_RISK_CODEC.listOf().optionalFieldOf("risks", List.of()).forGetter(result ->
+                    result.risks().stream().map(risk -> ConflictRisk.of(risk.tag(), risk.severity())).toList())
+    ).apply(inst, (severity, risks) ->
+            new ConflictResult(severity, risks.stream().map(risk -> (ConflictRisk) risk).toList())));
 
     Codec<Requirement> REQUIREMENT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.STRING.fieldOf("modid").forGetter(Requirement::modid),
             Codec.STRING.optionalFieldOf("mod_version_range").forGetter(Requirement::mod_version_range)
     ).apply(inst, Requirement::new));
+
+    Codec<OverrideDefinition.Key> OVERRIDE_KEY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            REQUIREMENT_CODEC.optionalFieldOf("requirement").forGetter(OverrideDefinition.Key::requirement),
+            Codec.STRING.fieldOf("name").forGetter(OverrideDefinition.Key::name)
+    ).apply(inst, OverrideDefinition.Key::new));
+
+    Codec<OverrideDefinition> OVERRIDE_DEFINITION_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            OPTIONAL_BOOL_CODEC.fieldOf("is_builtin").forGetter(OverrideDefinition::isBuiltin),
+            OVERRIDE_KEY_CODEC.fieldOf("key1").forGetter(OverrideDefinition::key1),
+            OVERRIDE_KEY_CODEC.fieldOf("key2").forGetter(OverrideDefinition::key2),
+            CONFLICT_RESULT_CODEC.fieldOf("result").forGetter(OverrideDefinition::result)
+    ).apply(inst, OverrideDefinition::new));
 
     Codec<MutexDefinition> MUTEX_DEFINITIONS_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.STRING.optionalFieldOf("namespace").forGetter(MutexDefinition::namespace),
@@ -74,13 +101,13 @@ public interface Codecs {
 
     Codec<KeyDefinitions.SemanticEntry> SEMANTIC_ENTRY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             ((Codec<IKeyContext>) ICONTEXT_CODEC).listOf().fieldOf("contexts").forGetter(KeyDefinitions.SemanticEntry::contexts),
-            Codec.STRING.optionalFieldOf("mod_version_range").forGetter(KeyDefinitions.SemanticEntry::mod_version_range),
+            Codec.STRING.optionalFieldOf("mod_version_range").forGetter(KeyDefinitions.SemanticEntry::modVersionRange),
             (SEMANTIC_CODEC).fieldOf("semantic").forGetter(KeyDefinitions.SemanticEntry::semantic)
     ).apply(inst, KeyDefinitions.SemanticEntry::new));
 
     Codec<KeyDefinitions.KeyDefinition> KEY_DEFINITION_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.STRING.fieldOf("path").forGetter(KeyDefinitions.KeyDefinition::name),
-            Codec.STRING.optionalFieldOf("mod_version_range").forGetter(KeyDefinitions.KeyDefinition::mod_version_range),
+            Codec.STRING.optionalFieldOf("mod_version_range").forGetter(KeyDefinitions.KeyDefinition::modVersionRange),
             SEMANTIC_ENTRY_CODEC.listOf().fieldOf("semantics").forGetter(KeyDefinitions.KeyDefinition::semantics)
     ).apply(inst, KeyDefinitions.KeyDefinition::new));
 

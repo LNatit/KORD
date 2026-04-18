@@ -28,12 +28,12 @@ public record KeyDefinitions(int version, Requirement requirement, List<KeyDefin
                     requirement().mod_version_range());
             return false;
         }
-        ArtifactVersion mod_version = requirement().findContainer().orElseThrow().getModInfo().getVersion();
-        keys().removeIf(k -> k.isInvalid(mod_version));
+        ArtifactVersion modVersion = requirement().findContainer().orElseThrow().getModInfo().getVersion();
+        keys().removeIf(k -> k.isInvalid(modVersion));
         if (keys().isEmpty()) {
             Chord.LOGGER.debug("All key definitions of mod '{}' are invalid for mod version '{}', ignored.",
                                requirement().modid(),
-                               mod_version);
+                               modVersion);
             return false;
         }
         return true;
@@ -42,13 +42,13 @@ public record KeyDefinitions(int version, Requirement requirement, List<KeyDefin
     /**
      * One key path with optional version gating and one-or-more semantic entries.
      */
-    public record KeyDefinition(String name, Optional<String> mod_version_range, List<SemanticEntry> semantics)
+    public record KeyDefinition(String name, Optional<String> modVersionRange, List<SemanticEntry> semantics)
     {
-        public boolean isInvalid(ArtifactVersion mod_version) {
-            if (!Requirement.matches(mod_version_range(), mod_version)) {
+        public boolean isInvalid(ArtifactVersion modVersion) {
+            if (!Requirement.matches(modVersionRange(), modVersion)) {
                 return true;
             }
-            semantics().removeIf(s -> s.isInvalid(mod_version));
+            semantics().removeIf(s -> s.isInvalid(modVersion));
             return semantics().isEmpty();
         }
     }
@@ -56,10 +56,10 @@ public record KeyDefinitions(int version, Requirement requirement, List<KeyDefin
     /**
      * Semantic payload for a key under one-or-more contexts with optional version gating.
      */
-    public record SemanticEntry(List<IKeyContext> contexts, Optional<String> mod_version_range, KeySemantic semantic)
+    public record SemanticEntry(List<IKeyContext> contexts, Optional<String> modVersionRange, KeySemantic semantic)
     {
-        public boolean isInvalid(ArtifactVersion mod_version) {
-            return !Requirement.matches(mod_version_range(), mod_version);
+        public boolean isInvalid(ArtifactVersion modVersion) {
+            return !Requirement.matches(modVersionRange(), modVersion);
         }
     }
 }

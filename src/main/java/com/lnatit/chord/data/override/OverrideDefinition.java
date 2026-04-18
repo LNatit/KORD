@@ -1,12 +1,13 @@
 package com.lnatit.chord.data.override;
 
-import com.lnatit.chord.eval.OverrideManager;
+import com.lnatit.chord.data.Requirement;
+import com.lnatit.chord.eval.override.OverrideManager;
 import com.lnatit.chord.result.ConflictResult;
-import org.apache.maven.artifact.versioning.ArtifactVersion;
 
 import java.util.Optional;
 
 public record OverrideDefinition(
+        boolean isBuiltin,
         Key key1,
         Key key2,
         ConflictResult result
@@ -18,13 +19,12 @@ public record OverrideDefinition(
 
 
     public record Key(
-            Optional<String> modid,
-            Optional<String> mod_version_range,
+            Optional<Requirement> requirement,
             String name
     )
     {
-        public boolean isInvalid(ArtifactVersion mod_version) {
-            return false;
+        public boolean isInvalid() {
+            return requirement().isPresent() && !requirement().get().isValid();
         }
     }
 }

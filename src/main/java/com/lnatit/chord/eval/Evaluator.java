@@ -2,6 +2,7 @@ package com.lnatit.chord.eval;
 
 import com.lnatit.chord.eval.intent.Intent;
 import com.lnatit.chord.eval.mutex.StateSet;
+import com.lnatit.chord.eval.override.OverrideManager;
 import com.lnatit.chord.eval.resource.Resource;
 import com.lnatit.chord.result.*;
 import net.minecraft.client.KeyMapping;
