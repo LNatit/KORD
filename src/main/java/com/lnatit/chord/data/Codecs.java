@@ -111,7 +111,6 @@ public interface Codecs {
             SEMANTIC_ENTRY_CODEC.listOf().fieldOf("semantics").forGetter(KeyDefinitions.KeyDefinition::semantics)
     ).apply(inst, KeyDefinitions.KeyDefinition::new));
 
-    // 当前项目仍在开发中，没有兼容性需求。
     Codec<KeyDefinitions> KEYS_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.INT.fieldOf("version").forGetter(KeyDefinitions::version),
             REQUIREMENT_CODEC.fieldOf("requirement").forGetter(KeyDefinitions::requirement),

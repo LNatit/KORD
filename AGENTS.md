@@ -37,6 +37,7 @@ Stage 1: Physical Key Match → Stage 2: User Overrides → Stage 3: Context Ove
 Key design: Each stage can mark results as **finished** (preventing further evaluation), or produce **dynamic risks** that propagate to later stages and can be downgraded/escalated based on new information.
 
 **Core class:** `com.lnatit.chord.eval.Evaluator.java`
+- **`Evaluator` is an `interface`** (not a class) — all methods are `static`
 - Static method: `Evaluator.conflicts(KeyMapping, KeyMapping): ConflictResult`
 - Each `evaluateXXX()` method handles one analysis dimension
 - `ConflictCollector` accumulates risks, tags, and completion state through the pipeline
@@ -53,6 +54,7 @@ record KeySemantic(StateSet states, boolean intercept, RedirectMode redirectMode
 ### State Mutex vs Subset
 - **Mutex**: Two StateSet instances share zero common states → automatic SAFE resolution
 - **Subset**: StateSet A ⊂ StateSet B → creates DynamicRisk.StateSubset (gets upgraded to WARNING/SEVERE if interceptive)
+- **StateSet tree structure**: `StateSet` is now backed by a boolean expression tree (`eval/mutex/tree/`) composed of `LeafNode` (a named mutex set), `AndNode`, `OrNode`, and `NotNode`. Use `TreeNode.toStateSet()` to compile. The codec in `Codecs.STATES_CODEC` parses these automatically from JSON.
 
 ### Interceptive Bindings
 If either binding intercepts input, it may create:
@@ -71,6 +73,11 @@ Keys and their semantics loaded from `key_semantics/**/*.json` at client reload:
 - Parsed via: `com.lnatit.chord.data.Codecs.KEYS_CODEC`
 - Applied to KeyMapping via Mixin-injected `SemanticalKey.chord$addSemantic()`
 
+**Three reload listeners** are registered in `Chord.java`:
+1. `MutexSetManager.INSTANCE` — loads mutex group definitions from `mutex_sets/**/*.json` (via `data/mutex/`)
+2. `KeySemanticManager.INSTANCE` — loads key semantic definitions from `key_semantics/**/*.json`
+3. `DatapackOverrideReloader.INSTANCE` — loads conflict overrides from `builtin_overrides/**/*.json`
+
 ### Mixin Integration
 - **Client mixin:** `client.MixinKeyMapping` - Extends KeyMapping with semantic storage
 - Config: `src/main/resources/chord.mixins.json`
@@ -78,9 +85,10 @@ Keys and their semantics loaded from `key_semantics/**/*.json` at client reload:
 
 ### Result Types
 `com.lnatit.chord.result/` package defines conflict output:
-- `ConflictResult` - Final serializable result
+- `ConflictResult` - Final serializable result (also has `ConflictResult.SAFE` constant)
+- `ConflictRisk` - Interface; `ConflictRisk.Static` is the serializable implementation; `DynamicRisk` is the mutable subclass
 - `ConflictTag` - Static debug tags (HARDWARE_MISMATCH, STATE_MUTEX, etc.)
-- `DynamicRisk` - Mutable risks with severity escalation/downgrade logic
+- `DynamicRisk` - Mutable risks with severity escalation/downgrade logic; concrete subclasses: `StateSubset`, `InterceptInput`, `RaceCondition`, `ContextLeak`, `DeferredRisk`, `LoseFocus`, `InputBlock`
 - `Severity` enum - SAFE → INFO → WARNING → SEVERE
 
 ## Build & Run Commands
@@ -108,26 +116,38 @@ Keys and their semantics loaded from `key_semantics/**/*.json` at client reload:
 
 ```
 src/main/java/com/lnatit/chord/
-├── Chord.java                      # Mod entry point, registers reload listeners
+├── Chord.java                      # Mod entry point, registers 3 reload listeners
 ├── eval/
-│   ├── Evaluator.java             # Core 8-stage conflict pipeline (CRITICAL)
-│   ├── KeySemantic.java           # Record of 7 semantic dimensions
+│   ├── Evaluator.java             # Core pipeline as interface with static methods (CRITICAL)
+│   ├── KeySemantic.java           # Record of 7 semantic dimensions; KeySemantic.DEFAULT available
 │   ├── SemanticalKey.java         # Interface injected onto KeyMapping via Mixin
 │   ├── Modality.java              # P/H/T mode evaluation matrix
 │   ├── RedirectMode.java          # Context transition evaluation matrix
 │   ├── context/                   # IKeyContext adapter layer
 │   ├── intent/                    # Intent semantics (TODO: incomplete)
-│   ├── mutex/                     # StateSet mutual exclusion logic
+│   ├── mutex/
+│   │   ├── StateSet.java          # Boolean expression over mutex groups
+│   │   └── tree/                  # AndNode, OrNode, NotNode, LeafNode, TreeNode
+│   ├── override/
+│   │   ├── OverrideManager.java   # Static map of overrides keyed by Type priority
+│   │   └── Type.java              # Override source types: USER > PLAYER > CREATOR > BUILTIN
 │   └── resource/                  # Resource concurrency properties
 ├── data/
-│   ├── Codecs.java                # JsonCodec definitions for key_semantics JSON
+│   ├── Codecs.java                # JsonCodec definitions (KEYS_CODEC, OVERRIDE_DEFINITION_CODEC, MUTEX_DEFINITIONS_CODEC, etc.)
+│   ├── Requirement.java           # Mod-id + version-range requirement check for conditional entries
+│   ├── mutex/
+│   │   ├── MutexSetManager.java   # Reload listener for mutex_sets/**/*.json
+│   │   ├── MutexSet.java          # A named group of mutually exclusive states
+│   │   └── MutexDefinition.java   # Deserialized JSON structure for mutex groups
 │   ├── semantic/
-│   │   ├── KeySemanticManager.java  # Resource reload listener
+│   │   ├── KeySemanticManager.java  # Reload listener for key_semantics/**/*.json
 │   │   └── KeyDefinitions.java      # Deserialized JSON structure
-│   └── override/                  # User override persistence (planned)
+│   └── override/
+│       ├── DatapackOverrideReloader.java  # Reload listener for builtin_overrides/**/*.json
+│       └── OverrideDefinition.java        # Deserialized JSON override entry
 ├── result/                        # Conflict result & risk types
 ├── mixin/client/                  # Bytecode injection points
-└── util/                          # Matrix & collection utilities
+└── util/                          # Matrix & collection utilities (AsymmetricEnumMatrix, Provider, Supplier)
 ```
 
 ## Common Development Patterns
@@ -155,6 +175,21 @@ public static class YourRisk extends DynamicRisk {
 }
 ```
 Use `collector.getRisk(YourRisk.class)` to check for and modify previous risks.
+
+### Adding Override Entries (datapack)
+Create a JSON file under `src/main/resources/data/chord/builtin_overrides/` decoded via `Codecs.OVERRIDE_DEFINITION_CODEC`:
+```json
+{ "is_builtin": true, "key1": { "name": "key.mod.action1" }, "key2": { "name": "key.mod.action2" }, "result": { "severity": "SAFE", "risks": [] } }
+```
+- `is_builtin: true` → stored as `Type.BUILTIN`; `false` → `Type.CREATOR`
+- Pair lookup is order-independent (symmetric `equals`/`hashCode` in `OverrideManager.Pair`
+- Priority order: USER > PLAYER > CREATOR > BUILTIN (see `OverrideManager.PRIORITY`)
+
+### Adding Mutex State Groups (datapack)
+Create a JSON file under `src/main/resources/data/chord/mutex_sets/` decoded via `Codecs.MUTEX_DEFINITIONS_CODEC`:
+```json
+{ "namespace": "mymod", "requirements": [{ "modid": "mymod" }], "mutexes": ["state_a", "state_b", "state_c"] }
+```
 
 ## Documentation Resources
 
@@ -188,4 +223,5 @@ When implementing new features:
 - **Context Overlap:** Use `isContextOverlapping()` before evaluating semantics - prevents false positives
 - **Resource Null:** Resource field can be null (bindings without specific resource targets)
 - **State Subset Escalation:** Only escalates StateSubset risk if interception is present - track this coupling
-
+- **Evaluator is an interface:** Do not attempt to instantiate it; call static methods directly (`Evaluator.conflicts(...)`, `Evaluator.eval(...)`)
+- **Override cleared on reload:** `DatapackOverrideReloader` clears both `BUILTIN` and `CREATOR` types on each reload — user-level overrides (`USER`, `PLAYER`) must be repopulated separately

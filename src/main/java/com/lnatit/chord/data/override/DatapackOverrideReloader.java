@@ -18,11 +18,10 @@ import java.util.Map;
 
 public class DatapackOverrideReloader extends SimpleJsonResourceReloadListener
 {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     public static final DatapackOverrideReloader INSTANCE = new DatapackOverrideReloader();
 
     private DatapackOverrideReloader() {
-        super(GSON, "builtin_overrides");
+        super(Codecs.GSON, "builtin_overrides");
     }
 
     @Override
