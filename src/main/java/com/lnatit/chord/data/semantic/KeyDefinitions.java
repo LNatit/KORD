@@ -4,8 +4,6 @@ import com.lnatit.chord.Chord;
 import com.lnatit.chord.data.Requirement;
 import com.lnatit.chord.eval.KeySemantic;
 import com.lnatit.chord.eval.context.IKeyContext;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.ModList;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 
 import java.util.List;
@@ -17,29 +15,25 @@ import java.util.Optional;
  * The file is scoped by {@code modid} and optional {@code mod_version_range}, then
  * each key and semantic entry can further narrow applicability via optional version ranges.
  */
-public record KeyDefinitions(int version,
-                             String modid,
-                             Optional<String> mod_version_range,
-                             List<KeyDefinition> keys)
+public record KeyDefinitions(int version, Requirement requirement, List<KeyDefinition> keys)
 {
     /**
      * Validates top-level mod constraints and removes version-incompatible nested entries.
      */
     public boolean checkValid() {
-        Optional<? extends ModContainer> container = ModList.get().getModContainerById(modid());
-        if (container.isEmpty()) {
-            Chord.LOGGER.debug("Mod '{}' not found for key definitions, ignored.", modid());
+        if (!requirement().isValid()) {
+            Chord.LOGGER.debug(
+                    "Key definitions does not met the requirement: [modid = '{}', mod_version_range = '{}'], ignored.",
+                    requirement().modid(),
+                    requirement().mod_version_range());
             return false;
         }
-
-        ArtifactVersion mod_version = container.get().getModInfo().getVersion();
-        if (!Requirement.matches(mod_version_range(), mod_version)) {
-            Chord.LOGGER.debug("Mod '{}' version '{}' does not satisfy the version requirement '{}' for key definitions, ignored.", modid(), mod_version, mod_version_range().get());
-            return false;
-        }
+        ArtifactVersion mod_version = requirement().findContainer().orElseThrow().getModInfo().getVersion();
         keys().removeIf(k -> k.isInvalid(mod_version));
         if (keys().isEmpty()) {
-            Chord.LOGGER.debug("All key definitions of mod '{}' are invalid for mod version '{}', ignored.", modid(), mod_version);
+            Chord.LOGGER.debug("All key definitions of mod '{}' are invalid for mod version '{}', ignored.",
+                               requirement().modid(),
+                               mod_version);
             return false;
         }
         return true;
@@ -48,9 +42,7 @@ public record KeyDefinitions(int version,
     /**
      * One key path with optional version gating and one-or-more semantic entries.
      */
-    public record KeyDefinition(String name,
-                                Optional<String> mod_version_range,
-                                List<SemanticEntry> semantics)
+    public record KeyDefinition(String name, Optional<String> mod_version_range, List<SemanticEntry> semantics)
     {
         public boolean isInvalid(ArtifactVersion mod_version) {
             if (!Requirement.matches(mod_version_range(), mod_version)) {
@@ -64,9 +56,7 @@ public record KeyDefinitions(int version,
     /**
      * Semantic payload for a key under one-or-more contexts with optional version gating.
      */
-    public record SemanticEntry(List<IKeyContext> contexts,
-                                Optional<String> mod_version_range,
-                                KeySemantic semantic)
+    public record SemanticEntry(List<IKeyContext> contexts, Optional<String> mod_version_range, KeySemantic semantic)
     {
         public boolean isInvalid(ArtifactVersion mod_version) {
             return !Requirement.matches(mod_version_range(), mod_version);

@@ -29,14 +29,14 @@ public interface Codecs {
             Codec.STRING.listOf().fieldOf("mutexes").forGetter(MutexSet::mutexes)
     ).apply(inst, MutexSet::new));
 
-    Codec<MutexDefinition.Requirement> MUTEX_REQUIREMENT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-            Codec.STRING.fieldOf("modid").forGetter(MutexDefinition.Requirement::modid),
-            Codec.STRING.optionalFieldOf("mod_version_range").forGetter(MutexDefinition.Requirement::mod_version_range)
-    ).apply(inst, MutexDefinition.Requirement::new));
+    Codec<Requirement> REQUIREMENT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            Codec.STRING.fieldOf("modid").forGetter(Requirement::modid),
+            Codec.STRING.optionalFieldOf("mod_version_range").forGetter(Requirement::mod_version_range)
+    ).apply(inst, Requirement::new));
 
     Codec<MutexDefinition> MUTEX_DEFINITIONS_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.STRING.optionalFieldOf("namespace").forGetter(MutexDefinition::namespace),
-            MUTEX_REQUIREMENT_CODEC.listOf().optionalFieldOf("requirements", List.of()).forGetter(MutexDefinition::requirements),
+            REQUIREMENT_CODEC.listOf().optionalFieldOf("requirements", List.of()).forGetter(MutexDefinition::requirements),
             Codec.STRING.listOf().fieldOf("mutexes").forGetter(MutexDefinition::mutexes)
     ).apply(inst, MutexDefinition::new));
 
@@ -84,10 +84,10 @@ public interface Codecs {
             SEMANTIC_ENTRY_CODEC.listOf().fieldOf("semantics").forGetter(KeyDefinitions.KeyDefinition::semantics)
     ).apply(inst, KeyDefinitions.KeyDefinition::new));
 
+    // 当前项目仍在开发中，没有兼容性需求。
     Codec<KeyDefinitions> KEYS_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.INT.fieldOf("version").forGetter(KeyDefinitions::version),
-            Codec.STRING.fieldOf("modid").forGetter(KeyDefinitions::modid),
-            Codec.STRING.optionalFieldOf("mod_version_range").forGetter(KeyDefinitions::mod_version_range),
+            REQUIREMENT_CODEC.fieldOf("requirement").forGetter(KeyDefinitions::requirement),
             KEY_DEFINITION_CODEC.listOf().fieldOf("keys").forGetter(KeyDefinitions::keys)
     ).apply(inst, KeyDefinitions::new));
 
