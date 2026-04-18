@@ -8,7 +8,8 @@ import org.jetbrains.annotations.ApiStatus;
 
 import java.util.*;
 
-public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
+public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect
+{
     StateSet intersect(StateSet other);
 
     StateSet union(StateSet other);
@@ -31,8 +32,9 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
         return switch (other) {
             case HyperRect otherRect -> this.rects().stream().allMatch(r -> r.isSubsetOfRect(otherRect));
             case UnionSet otherUnion -> {
-                if (this.rects().stream().allMatch(r -> otherUnion.rects().stream().anyMatch(r::isSubsetOfRect)))
+                if (this.rects().stream().allMatch(r -> otherUnion.rects().stream().anyMatch(r::isSubsetOfRect))) {
                     yield true;
+                }
                 yield this.intersect(otherUnion.complement()).isEmpty();
             }
         };
@@ -46,18 +48,27 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
         return other.isSubsetOf(this);
     }
 
-    record HyperRect(Object2IntMap<MutexSet> mutexSetToBitmap) implements StateSet {
+    record HyperRect(Object2IntMap<MutexSet> mutexSetToBitmap, int hash) implements StateSet
+    {
         @Deprecated
         @ApiStatus.Internal
         @SuppressWarnings("all")
         public HyperRect {
             mutexSetToBitmap = Object2IntMaps.unmodifiable(mutexSetToBitmap);
+            // Compute hash: flip each bitmap so full-dimension entries (bitmap == mask) contribute 0,
+            // matching the implicit "omitted == full" contract of HyperRect's data model.
+            int h = 0;
+            for (Object2IntMap.Entry<MutexSet> entry : mutexSetToBitmap.object2IntEntrySet()) {
+                int flipped = entry.getKey().getMask() & ~entry.getIntValue();
+                h |= entry.getKey().hashCodeOf(flipped);
+            }
+            hash = h;
         }
 
         private static HyperRect singleton(MutexSet mutexSet, int bitmap) {
             Object2IntOpenHashMap<MutexSet> map = new Object2IntOpenHashMap<>();
             map.put(mutexSet, bitmap);
-            return new HyperRect(map);
+            return new HyperRect(map, 0);
         }
 
         @Override
@@ -83,7 +94,7 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
                         }
                         newMap.put(mutexSet, res);
                     }
-                    yield new HyperRect(newMap);
+                    yield new HyperRect(newMap, 0);
                 }
                 case UnionSet otherUnion -> otherUnion.intersect(this);
             };
@@ -133,11 +144,6 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
 
         @Override
         public int hashCode() {
-            if (this.isFull()) return 0xFFFFFFFF;
-            int hash = 0;
-            for (Object2IntMap.Entry<MutexSet> entry : this.mutexSetToBitmap().object2IntEntrySet()) {
-                hash |= entry.getKey().hashCodeOf(entry.getIntValue());
-            }
             return hash;
         }
 
@@ -153,7 +159,7 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
         }
     }
 
-    StateSet FULL = new HyperRect(new Object2IntOpenHashMap<>());
+    StateSet FULL = new HyperRect(new Object2IntOpenHashMap<>(), 0);
 
     default boolean isFull() {
         return this == FULL;
@@ -163,15 +169,32 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
         if (bitmap == 0) {
             return EMPTY;
         }
+        if (bitmap == mutexSet.getMask()) {
+            return FULL;
+        }
         return HyperRect.singleton(mutexSet, bitmap);
     }
 
-    record UnionSet(List<HyperRect> rects) implements StateSet {
+    record UnionSet(List<HyperRect> rects, int hash) implements StateSet
+    {
         @Deprecated
         @ApiStatus.Internal
         @SuppressWarnings("all")
         public UnionSet {
             rects = List.copyOf(rects);
+
+            Object2IntMap<MutexSet> merged = new Object2IntOpenHashMap<>();
+            for (HyperRect rect : rects) {
+                for (Object2IntMap.Entry<MutexSet> entry : rect.mutexSetToBitmap().object2IntEntrySet()) {
+                    merged.mergeInt(entry.getKey(), entry.getIntValue(), (o, n) -> o & n);
+                }
+            }
+
+            int h = 0;
+            for (Object2IntMap.Entry<MutexSet> entry : merged.object2IntEntrySet()) {
+                h |= entry.getKey().hashCodeOf(entry.getIntValue());
+            }
+            hash = h;
         }
 
         // 带化简的UnionSet构造器
@@ -187,7 +210,7 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
                     result.add(rect);
                 }
             }
-            return new UnionSet(List.copyOf(result));
+            return new UnionSet(List.copyOf(result), 0);
         }
 
         private static StateSet of(HyperRect... rects) {
@@ -246,16 +269,11 @@ public sealed interface StateSet permits StateSet.UnionSet, StateSet.HyperRect {
 
         @Override
         public int hashCode() {
-//            int hash = 0;
-//            if (this.isEmpty()) return hash;
-//            for (HyperRect rect : this.rects()) {
-//                hash |= rect.hashCode();
-//            }
-//            return hash;
+            return hash;
         }
     }
 
-    StateSet EMPTY = new UnionSet(List.of());
+    StateSet EMPTY = new UnionSet(List.of(), 0);
 
     default boolean isEmpty() {
         return this == EMPTY;

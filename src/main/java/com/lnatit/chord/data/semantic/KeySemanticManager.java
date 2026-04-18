@@ -1,7 +1,5 @@
 package com.lnatit.chord.data.semantic;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.lnatit.chord.Chord;
 import com.lnatit.chord.data.Codecs;
@@ -20,10 +18,8 @@ import java.util.Map;
 public class KeySemanticManager extends SimpleJsonResourceReloadListener {
     public static final KeySemanticManager INSTANCE = new KeySemanticManager();
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-
     private KeySemanticManager() {
-        super(GSON, "key_semantics");
+        super(Codecs.GSON, "key_semantics");
     }
 
     @Override

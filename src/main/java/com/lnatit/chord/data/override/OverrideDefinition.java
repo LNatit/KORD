@@ -1,6 +1,5 @@
 package com.lnatit.chord.data.override;
 
-import com.lnatit.chord.data.Versioned;
 import com.lnatit.chord.eval.OverrideManager;
 import com.lnatit.chord.result.ConflictResult;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
@@ -22,9 +21,8 @@ public record OverrideDefinition(
             Optional<String> modid,
             Optional<String> mod_version_range,
             String name
-    ) implements Versioned
+    )
     {
-        @Override
         public boolean isInvalid(ArtifactVersion mod_version) {
             return false;
         }

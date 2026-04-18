@@ -14,6 +14,10 @@ public record MutexSet(String namespace, List<String> mutexes) {
         return ALL_SETS.get(namespace);
     }
 
+    public static void clear() {
+        ALL_SETS.clear();
+    }
+
     public MutexSet(String namespace, List<String> mutexes) {
         if (mutexes.size() > 32)
             throw new IllegalArgumentException("A mutex set cannot contain more than 32 mutexes");
@@ -49,12 +53,20 @@ public record MutexSet(String namespace, List<String> mutexes) {
         return mutexes;
     }
 
+    /**
+     * Computes a hash contribution for this MutexSet dimension.
+     * The bitmap is first complemented within the valid mask so that a full-coverage
+     * bitmap (== getMask()) contributes 0 — consistent with the "omitted dimension ==
+     * full coverage" convention of {@link com.lnatit.chord.eval.mutex.StateSet.HyperRect}.
+     * Callers always pass the raw bitmap; the flip is an implementation detail here.
+     */
     public int hashCodeOf(int bitmap) {
-        if (bitmap == 0) return 0;
+        int flipped = getMask() & ~bitmap;
+        if (flipped == 0) return 0;
 
         int filled = 0;
         for (int i = 0; i < 32; i += mutexes.size()) {
-            filled |= bitmap << i;
+            filled |= flipped << i;
         }
 
         return filled & hashCode();

@@ -1,5 +1,9 @@
 package com.lnatit.chord.data;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.lnatit.chord.data.mutex.MutexDefinition;
+import com.lnatit.chord.data.mutex.MutexSet;
 import com.lnatit.chord.eval.KeySemantic;
 import com.lnatit.chord.eval.Modality;
 import com.lnatit.chord.eval.RedirectMode;
@@ -16,7 +20,25 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.List;
 
 public interface Codecs {
+    Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+
     Codec<Boolean> OPTIONAL_BOOL_CODEC = Codec.BOOL.orElse(false);
+
+    Codec<MutexSet> MUTEX_SET_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            Codec.STRING.fieldOf("namespace").forGetter(MutexSet::namespace),
+            Codec.STRING.listOf().fieldOf("mutexes").forGetter(MutexSet::mutexes)
+    ).apply(inst, MutexSet::new));
+
+    Codec<MutexDefinition.Requirement> MUTEX_REQUIREMENT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            Codec.STRING.fieldOf("modid").forGetter(MutexDefinition.Requirement::modid),
+            Codec.STRING.optionalFieldOf("mod_version_range").forGetter(MutexDefinition.Requirement::mod_version_range)
+    ).apply(inst, MutexDefinition.Requirement::new));
+
+    Codec<MutexDefinition> MUTEX_DEFINITIONS_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            Codec.STRING.optionalFieldOf("namespace").forGetter(MutexDefinition::namespace),
+            MUTEX_REQUIREMENT_CODEC.listOf().optionalFieldOf("requirements", List.of()).forGetter(MutexDefinition::requirements),
+            Codec.STRING.listOf().fieldOf("mutexes").forGetter(MutexDefinition::mutexes)
+    ).apply(inst, MutexDefinition::new));
 
     Codec<LeafNode> LEAF_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.STRING.fieldOf("namespace").forGetter(leaf -> leaf.mutexSet().namespace()),
