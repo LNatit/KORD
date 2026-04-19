@@ -155,62 +155,102 @@ public interface Evaluator {
     ) {
         Resource sRes = subjectSemantic.resource();
         Resource oRes = opponentSemantic.resource();
-
-        if (sRes != Resource.ROOT && oRes != Resource.ROOT) {
-            boolean isInterceptive = collector.getRisk(DynamicRisk.Interceptive.class).isPresent();
-            if (sRes == oRes) {
-                // Same
-                if (!subjectSemantic.readOnly() && !opponentSemantic.readOnly()) {
-                    if (!sRes.allowsConcurrentWrites()) {
-                        collector.withRisk(ConflictTag.CONCURRENT_MODIFICATION,
-                                isInterceptive ? Severity.INFO : Severity.SEVERE);
-                    } else {
-                        collector.withDebug(ConflictTag.CONCURRENT_WRITE);
-                    }
-                    return;
-                } else if (!subjectSemantic.readOnly() || !opponentSemantic.readOnly()) {
-                    collector.withRisk(ConflictTag.READ_WRITE,
-                            sRes.allowsConcurrentWrites() || isInterceptive
-                                    ? Severity.INFO
-                                    : Severity.WARNING);
-                } else {
-                    collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
-                }
-                return;
-            } else {
-                Resource lca = Resource.getLCA(sRes, oRes);
-                if (lca != Resource.ROOT && (lca == sRes || lca == oRes)) {
-                    // ANCESTOR_DESCENDANT
-                    if (subjectSemantic.readOnly() && opponentSemantic.readOnly()) {
-                        collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
-                    } else {
-                        boolean subjectIsParent = lca == sRes;
-                        boolean cs = subjectIsParent ? oRes.allowsConcurrentWrites() : sRes.allowsConcurrentWrites();
-                        if (!subjectSemantic.readOnly() && !opponentSemantic.readOnly()) {
-                            // WW
-                            boolean ps = subjectIsParent ? sRes.allowsConcurrentWrites() : oRes.allowsConcurrentWrites();
-                            if (ps && cs) {
-                                collector.withDebug(ConflictTag.CONCURRENT_WRITE);
-                            } else {
-                                collector.withRisk(ConflictTag.CONCURRENT_MODIFICATION,
-                                        isInterceptive ? Severity.INFO :
-                                                !ps && !cs ? Severity.SEVERE :
-                                                        ps ? Severity.WARNING : Severity.INFO
-                                );
-                            }
-                        } else {
-                            // RW
-                            collector.withRisk(ConflictTag.READ_WRITE,
-                                    cs || isInterceptive
-                                            ? Severity.INFO : Severity.WARNING);
-                        }
-                    }
-                    return;
-                }
-            }
+        if (sRes == Resource.ROOT || oRes == Resource.ROOT) {
+            collector.withDebug(ConflictTag.RESOURCE_MUTEX);
+            return;
         }
-        // Siblings or Disjoint (can see as siblings of ROOT)
-        collector.withDebug(ConflictTag.RESOURCE_MUTEX);
+
+        boolean subjectReadOnly = subjectSemantic.readOnly();
+        boolean opponentReadOnly = opponentSemantic.readOnly();
+        boolean interceptive = collector.getRisk(DynamicRisk.Interceptive.class).isPresent();
+        if (sRes == oRes) {
+            evaluateSameResource(subjectReadOnly, opponentReadOnly, interceptive, sRes, collector);
+            return;
+        }
+
+        Resource lca = Resource.getLCA(sRes, oRes);
+        if (lca == Resource.ROOT || (lca != sRes && lca != oRes)) {
+            // Siblings or disjoint.
+            collector.withDebug(ConflictTag.RESOURCE_MUTEX);
+            return;
+        }
+
+        boolean subjectIsParent = lca == sRes;
+        Resource parentResource = subjectIsParent ? sRes : oRes;
+        Resource childResource = subjectIsParent ? oRes : sRes;
+        evaluateAncestorResource(subjectReadOnly, opponentReadOnly,
+                interceptive, parentResource, childResource, collector);
+    }
+
+    private static void evaluateSameResource(
+            boolean subjectReadOnly,
+            boolean opponentReadOnly,
+            boolean interceptive,
+            Resource resource,
+            ConflictCollector collector
+    ) {
+        if (subjectReadOnly && opponentReadOnly) {
+            collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
+            return;
+        }
+
+        if (!subjectReadOnly && !opponentReadOnly) {
+            if (resource.allowsConcurrentWrites()) {
+                collector.withDebug(ConflictTag.CONCURRENT_WRITE);
+            } else {
+                collector.withRisk(ConflictTag.CONCURRENT_MODIFICATION,
+                        interceptive ? Severity.INFO : Severity.SEVERE);
+            }
+            return;
+        }
+
+        collector.withRisk(ConflictTag.READ_WRITE,
+                resource.allowsConcurrentWrites() || interceptive
+                        ? Severity.INFO
+                        : Severity.WARNING);
+    }
+
+    private static void evaluateAncestorResource(
+            boolean subjectReadOnly,
+            boolean opponentReadOnly,
+            boolean interceptive,
+            Resource ancestor,
+            Resource descendent,
+            ConflictCollector collector
+    ) {
+        if (subjectReadOnly && opponentReadOnly) {
+            collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
+            return;
+        }
+
+        boolean descendentAllowsConcurrentWrites = descendent.allowsConcurrentWrites();
+        if (!subjectReadOnly && !opponentReadOnly) {
+            boolean ancestorAllowsConcurrentWrites = ancestor.allowsConcurrentWrites();
+            if (ancestorAllowsConcurrentWrites && descendentAllowsConcurrentWrites) {
+                collector.withDebug(ConflictTag.CONCURRENT_WRITE);
+                return;
+            }
+
+            collector.withRisk(ConflictTag.CONCURRENT_MODIFICATION,
+                    interceptive ? Severity.INFO :
+                            ancestorWWSeverity(ancestorAllowsConcurrentWrites,
+                                    descendentAllowsConcurrentWrites));
+            return;
+        }
+
+        collector.withRisk(ConflictTag.READ_WRITE,
+                descendentAllowsConcurrentWrites || interceptive
+                        ? Severity.INFO : Severity.WARNING);
+    }
+
+    private static Severity ancestorWWSeverity(
+            boolean ancestorAllowsConcurrentWrites,
+            boolean descendentAllowsConcurrentWrites
+    ) {
+        if (!ancestorAllowsConcurrentWrites && !descendentAllowsConcurrentWrites) {
+            return Severity.SEVERE;
+        }
+        return ancestorAllowsConcurrentWrites ? Severity.WARNING : Severity.INFO;
     }
 
     static void evaluateIntent(
