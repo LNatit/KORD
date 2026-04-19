@@ -2,7 +2,7 @@ package com.lnatit.chord.eval.override;
 
 import com.lnatit.chord.result.ConflictTag;
 
-public enum Type
+public enum OverrideType
 {
     USER(ConflictTag.USER_OVERRIDE),
     BUILTIN(ConflictTag.BUILTIN_OVERRIDE),
@@ -11,7 +11,7 @@ public enum Type
 
     private final ConflictTag tag;
 
-    Type(ConflictTag tag) {
+    OverrideType(ConflictTag tag) {
         this.tag = tag;
     }
 

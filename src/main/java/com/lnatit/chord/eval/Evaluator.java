@@ -11,8 +11,7 @@ import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 import java.util.Map;
 import java.util.Optional;
 
-public interface Evaluator
-{
+public interface Evaluator {
     /**
      * @see KeyMapping#same(KeyMapping)
      */
@@ -50,9 +49,9 @@ public interface Evaluator
 
     static boolean isSameKey(KeyMapping subject, KeyMapping opponent) {
         return subject.getKey().equals(opponent.getKey())
-               && subject.getDefaultKeyModifier()
-                         .equals(opponent.getDefaultKeyModifier())
-               && subject.getKeyModifier().equals(opponent.getKeyModifier());
+                && subject.getDefaultKeyModifier()
+                .equals(opponent.getDefaultKeyModifier())
+                && subject.getKeyModifier().equals(opponent.getKeyModifier());
     }
 
     static boolean isContextOverlapping(IKeyConflictContext subjectContext, IKeyConflictContext opponentContext) {
@@ -156,27 +155,61 @@ public interface Evaluator
     ) {
         Resource sRes = subjectSemantic.resource();
         Resource oRes = opponentSemantic.resource();
-        if (Resource.overlaps(sRes, oRes)) {
+
+        if (sRes != Resource.ROOT && oRes != Resource.ROOT) {
             boolean isInterceptive = collector.getRisk(DynamicRisk.Interceptive.class).isPresent();
-            if (!(subjectSemantic.readOnly() && opponentSemantic.readOnly())) {
+            if (sRes == oRes) {
+                // Same
                 if (!subjectSemantic.readOnly() && !opponentSemantic.readOnly()) {
-                    if (!sRes.supportsConcurrentWrites()) {
-                        collector.withRisk(ConflictTag.CONCURRENT_WRITE,
-                                           isInterceptive ? Severity.INFO : Severity.SEVERE);
+                    if (!sRes.allowsConcurrentWrites()) {
+                        collector.withRisk(ConflictTag.CONCURRENT_MODIFICATION,
+                                isInterceptive ? Severity.INFO : Severity.SEVERE);
+                    } else {
+                        collector.withDebug(ConflictTag.CONCURRENT_WRITE);
                     }
-                }
-                else {
+                    return;
+                } else if (!subjectSemantic.readOnly() || !opponentSemantic.readOnly()) {
                     collector.withRisk(ConflictTag.READ_WRITE,
-                                       sRes.supportsConcurrentWrites() || isInterceptive
-                                       ? Severity.INFO
-                                       : Severity.WARNING);
+                            sRes.allowsConcurrentWrites() || isInterceptive
+                                    ? Severity.INFO
+                                    : Severity.WARNING);
+                } else {
+                    collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
+                }
+                return;
+            } else {
+                Resource lca = Resource.getLCA(sRes, oRes);
+                if (lca != Resource.ROOT && (lca == sRes || lca == oRes)) {
+                    // ANCESTOR_DESCENDANT
+                    if (subjectSemantic.readOnly() && opponentSemantic.readOnly()) {
+                        collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
+                    } else {
+                        boolean subjectIsParent = lca == sRes;
+                        boolean cs = subjectIsParent ? oRes.allowsConcurrentWrites() : sRes.allowsConcurrentWrites();
+                        if (!subjectSemantic.readOnly() && !opponentSemantic.readOnly()) {
+                            // WW
+                            boolean ps = subjectIsParent ? sRes.allowsConcurrentWrites() : oRes.allowsConcurrentWrites();
+                            if (ps && cs) {
+                                collector.withDebug(ConflictTag.CONCURRENT_WRITE);
+                            } else {
+                                collector.withRisk(ConflictTag.CONCURRENT_MODIFICATION,
+                                        isInterceptive ? Severity.INFO :
+                                                !ps && !cs ? Severity.SEVERE :
+                                                        ps ? Severity.WARNING : Severity.INFO
+                                );
+                            }
+                        } else {
+                            // RW
+                            collector.withRisk(ConflictTag.READ_WRITE,
+                                    cs || isInterceptive
+                                            ? Severity.INFO : Severity.WARNING);
+                        }
+                    }
+                    return;
                 }
             }
-            else {
-                collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
-            }
-            return;
         }
+        // Siblings or Disjoint (can see as siblings of ROOT)
         collector.withDebug(ConflictTag.RESOURCE_MUTEX);
     }
 

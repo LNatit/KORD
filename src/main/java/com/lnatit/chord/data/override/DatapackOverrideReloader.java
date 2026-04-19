@@ -6,7 +6,7 @@ import com.google.gson.JsonElement;
 import com.lnatit.chord.Chord;
 import com.lnatit.chord.data.Codecs;
 import com.lnatit.chord.eval.override.OverrideManager;
-import com.lnatit.chord.eval.override.Type;
+import com.lnatit.chord.eval.override.OverrideType;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.ResourceLocation;
@@ -32,8 +32,8 @@ public class DatapackOverrideReloader extends SimpleJsonResourceReloadListener
             ProfilerFiller profiler
     ) {
         profiler.push("chord_builtin_overrides");
-        OverrideManager.clear(Type.BUILTIN);
-        OverrideManager.clear(Type.CREATOR); // Clear creator overrides as well since they are both loaded from datapacks.
+        OverrideManager.clear(OverrideType.BUILTIN);
+        OverrideManager.clear(OverrideType.CREATOR); // Clear creator overrides as well since they are both loaded from datapacks.
 
         int loaded = 0;
         for (Map.Entry<ResourceLocation, JsonElement> entry : map.entrySet()) {
@@ -50,7 +50,7 @@ public class DatapackOverrideReloader extends SimpleJsonResourceReloadListener
                 continue;
             }
 
-            OverrideManager.put(definition.isBuiltin() ? Type.BUILTIN : Type.CREATOR, definition.getPair(), definition.result());
+            OverrideManager.put(definition.isBuiltin() ? OverrideType.BUILTIN : OverrideType.CREATOR, definition.getPair(), definition.result());
             loaded++;
         }
 

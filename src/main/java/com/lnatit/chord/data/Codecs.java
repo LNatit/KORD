@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.lnatit.chord.data.mutex.MutexDefinition;
 import com.lnatit.chord.data.override.OverrideDefinition;
+import com.lnatit.chord.data.resource.ResourceDefinition;
 import com.lnatit.chord.eval.KeySemantic;
 import com.lnatit.chord.eval.Modality;
 import com.lnatit.chord.eval.RedirectMode;
@@ -68,6 +69,12 @@ public interface Codecs {
             Codec.STRING.listOf().fieldOf("mutexes").forGetter(MutexDefinition::mutexes)
     ).apply(inst, MutexDefinition::new));
 
+    Codec<ResourceDefinition> RESOURCE_DEFINITION_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            REQUIREMENT_CODEC.optionalFieldOf("requirement").forGetter(ResourceDefinition::requirement),
+            Codec.STRING.optionalFieldOf("path").forGetter(ResourceDefinition::path),
+            OPTIONAL_BOOL_CODEC.fieldOf("supports_concurrent_writes").forGetter(ResourceDefinition::supportsConcurrentWrites)
+    ).apply(inst, ResourceDefinition::new));
+
     Codec<LeafNode> LEAF_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.STRING.fieldOf("namespace").forGetter(leaf -> leaf.mutexSet().namespace()),
             Codec.STRING.listOf().fieldOf("mutexes").forGetter(leaf -> leaf.mutexSet().mutexes())
@@ -83,7 +90,7 @@ public interface Codecs {
     // TODO optimize listCodec
     Codec<StateSet> STATES_CODEC = TREE_CODEC.xmap(TreeNode::toStateSet, stateSet -> new AndNode(List.of()));
     Codec<RedirectMode> REDIRECT_CODEC = enumCodec(RedirectMode.class).orElse(RedirectMode.NONE);
-    Codec<Resource> RESOURCE_CODEC = Codec.STRING.xmap(Resource::of, Resource::path);
+    Codec<Resource> RESOURCE_CODEC = Codec.STRING.xmap(Resource::getOrCreate, Resource::path);
     Codec<Intent> INTENT_CODEC = Codec.STRING.xmap(Intent::of, Intent::name);
     Codec<IntentList> INTENT_LIST_CODEC = INTENT_CODEC.listOf().xmap(IntentList::of, IntentList::values);
     Codec<Modality> MODALITY_CODEC = enumCodec(Modality.class).orElse(Modality.PRESS);

@@ -14,33 +14,33 @@ import java.util.Optional;
 
 public interface OverrideManager
 {
-    List<Type> PRIORITY = List.of(Type.USER, Type.PLAYER, Type.CREATOR, Type.BUILTIN);
-    Map<Type, Map<Pair, ConflictResult>> OVERRIDES = createOverrideMap();
+    List<OverrideType> PRIORITY = List.of(OverrideType.USER, OverrideType.PLAYER, OverrideType.CREATOR, OverrideType.BUILTIN);
+    Map<OverrideType, Map<Pair, ConflictResult>> OVERRIDES = createOverrideMap();
 
-    private static Map<Type, Map<Pair, ConflictResult>> createOverrideMap() {
-        Map<Type, Map<Pair, ConflictResult>> map = new EnumMap<>(Type.class);
-        for (Type type : Type.values()) {
+    private static Map<OverrideType, Map<Pair, ConflictResult>> createOverrideMap() {
+        Map<OverrideType, Map<Pair, ConflictResult>> map = new EnumMap<>(OverrideType.class);
+        for (OverrideType type : OverrideType.values()) {
             map.put(type, new java.util.HashMap<>());
         }
         return map;
     }
 
-    static void clear(Type type) {
+    static void clear(OverrideType type) {
         OVERRIDES.get(type).clear();
     }
 
     static void clearAll() {
-        for (Type type : Type.values()) {
+        for (OverrideType type : OverrideType.values()) {
             clear(type);
         }
     }
 
-    static void put(Type type, Pair pair, ConflictResult result) {
+    static void put(OverrideType type, Pair pair, ConflictResult result) {
         OVERRIDES.get(type).put(pair, result);
     }
 
     static Optional<ConflictResult> getOverride(Pair pair) {
-        for (Type type : PRIORITY) {
+        for (OverrideType type : PRIORITY) {
             ConflictResult result = OVERRIDES.get(type).get(pair);
             if (result != null) {
                 return Optional.of(withSourceTag(result, type));
@@ -53,7 +53,7 @@ public interface OverrideManager
         return getOverride(Pair.of(key1, key2));
     }
 
-    private static ConflictResult withSourceTag(ConflictResult result, Type type) {
+    private static ConflictResult withSourceTag(ConflictResult result, OverrideType type) {
         List<ConflictRisk> risks = new ArrayList<>(result.risks());
         if (risks.stream().noneMatch(risk -> risk.tag().equals(type.tag()))) {
             risks.add(ConflictRisk.create(type.tag(), Severity.SAFE));
