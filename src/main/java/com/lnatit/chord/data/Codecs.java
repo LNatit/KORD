@@ -10,6 +10,7 @@ import com.lnatit.chord.eval.RedirectMode;
 import com.lnatit.chord.eval.context.IKeyContext;
 import com.lnatit.chord.eval.context.KeyContext;
 import com.lnatit.chord.eval.intent.Intent;
+import com.lnatit.chord.eval.intent.IntentList;
 import com.lnatit.chord.eval.mutex.StateSet;
 import com.lnatit.chord.data.semantic.KeyDefinitions;
 import com.lnatit.chord.eval.mutex.tree.*;
@@ -84,6 +85,7 @@ public interface Codecs {
     Codec<RedirectMode> REDIRECT_CODEC = enumCodec(RedirectMode.class).orElse(RedirectMode.NONE);
     Codec<Resource> RESOURCE_CODEC = Codec.STRING.xmap(Resource::of, Resource::path);
     Codec<Intent> INTENT_CODEC = Codec.STRING.xmap(Intent::of, Intent::name);
+    Codec<IntentList> INTENT_LIST_CODEC = INTENT_CODEC.listOf().xmap(IntentList::of, IntentList::values);
     Codec<Modality> MODALITY_CODEC = enumCodec(Modality.class).orElse(Modality.PRESS);
 
 //    Codec<IKeyContext.Lookup> LOOKUP_CODEC;
@@ -96,7 +98,7 @@ public interface Codecs {
             REDIRECT_CODEC.fieldOf("redirect_mode").forGetter(KeySemantic::redirectMode),
             RESOURCE_CODEC.fieldOf("resource").forGetter(KeySemantic::resource),
             OPTIONAL_BOOL_CODEC.fieldOf("read_only").forGetter(KeySemantic::readOnly),
-            INTENT_CODEC.listOf().fieldOf("intents").forGetter(KeySemantic::intents),
+            INTENT_LIST_CODEC.fieldOf("intents").forGetter(KeySemantic::intents),
             MODALITY_CODEC.fieldOf("modality").forGetter(KeySemantic::modality)).apply(inst, KeySemantic::new));
 
     Codec<KeyDefinitions.SemanticEntry> SEMANTIC_ENTRY_CODEC = RecordCodecBuilder.create(inst -> inst.group(

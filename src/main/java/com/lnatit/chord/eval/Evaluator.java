@@ -1,6 +1,6 @@
 package com.lnatit.chord.eval;
 
-import com.lnatit.chord.eval.intent.Intent;
+import com.lnatit.chord.eval.intent.IntentList;
 import com.lnatit.chord.eval.mutex.StateSet;
 import com.lnatit.chord.eval.override.OverrideManager;
 import com.lnatit.chord.eval.resource.Resource;
@@ -8,7 +8,6 @@ import com.lnatit.chord.result.*;
 import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -186,16 +185,16 @@ public interface Evaluator
             KeySemantic opponentSemantic,
             ConflictCollector collector
     ) {
-        List<Intent> sI = subjectSemantic.intents();
-        List<Intent> oI = opponentSemantic.intents();
-        if (Intent.hasShared(sI, oI)) {
+        IntentList sI = subjectSemantic.intents();
+        IntentList oI = opponentSemantic.intents();
+        if (IntentList.hasShared(sI, oI)) {
             Optional<DynamicRisk.Interceptive> risk = collector.getRisk(DynamicRisk.Interceptive.class);
             if (risk.isPresent()) {
                 risk.get().downgrade();
                 return;
             }
             // intent_shared
-            collector.withRisk(ConflictTag.INTENT_SHARE, Intent.isIdentical(sI, oI) ? Severity.SAFE : Severity.INFO);
+            collector.withRisk(ConflictTag.INTENT_SHARE, IntentList.isIdentical(sI, oI) ? Severity.SAFE : Severity.INFO);
         }
     }
 
