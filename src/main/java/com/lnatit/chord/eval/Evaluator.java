@@ -16,7 +16,7 @@ public interface Evaluator {
      * @see KeyMapping#same(KeyMapping)
      */
     static ConflictResult conflicts(KeyMapping subject, KeyMapping opponent) {
-        ConflictCollector collector = new ConflictCollector();
+        MetaConflictCollector collector = new MetaConflictCollector();
 
         // Physical Pair
         if (!isSameKey(subject, opponent)) {
@@ -40,7 +40,10 @@ public interface Evaluator {
                     continue;
                 }
 
-                collector.merge(eval(sEntry.getValue(), oEntry.getValue()));
+                collector.mergePair(
+                        ContextPair.of(sEntry.getKey(), oEntry.getKey()),
+                        eval(sEntry.getValue(), oEntry.getValue())
+                );
             }
         }
 
@@ -58,8 +61,8 @@ public interface Evaluator {
         return subjectContext.conflicts(opponentContext) || opponentContext.conflicts(subjectContext);
     }
 
-    static ConflictCollector eval(KeySemantic subject, KeySemantic opponent) {
-        ConflictCollector collector = new ConflictCollector();
+    static PairConflictCollector eval(KeySemantic subject, KeySemantic opponent) {
+        PairConflictCollector collector = new PairConflictCollector();
 
         // State mutex
         evaluateStateMutex(subject, opponent, collector);
@@ -89,7 +92,7 @@ public interface Evaluator {
         return collector;
     }
 
-    static void evaluateStateMutex(KeySemantic subject, KeySemantic opponent, ConflictCollector collector) {
+    static void evaluateStateMutex(KeySemantic subject, KeySemantic opponent, PairConflictCollector collector) {
         StateSet subjectStates = subject.states();
         StateSet opponentStates = opponent.states();
         if (StateSet.isMutex(subjectStates, opponentStates)) {
@@ -109,7 +112,7 @@ public interface Evaluator {
     static void evaluateIntercept(
             KeySemantic subjectSemantic,
             KeySemantic opponentSemantic,
-            ConflictCollector collector
+            PairConflictCollector collector
     ) {
         // Hijack eval depends on other contexts, so we don't use matrix indexing...
         boolean si = subjectSemantic.intercept();
@@ -142,7 +145,7 @@ public interface Evaluator {
     static void evaluateRedirect(
             KeySemantic subjectSemantic,
             KeySemantic opponentSemantic,
-            ConflictCollector collector
+            PairConflictCollector collector
     ) {
         ConflictInfo info = RedirectMode.MATRIX.get(subjectSemantic.redirectMode(), opponentSemantic.redirectMode());
         info.attachTo(collector);
@@ -151,7 +154,7 @@ public interface Evaluator {
     static void evaluateResource(
             KeySemantic subjectSemantic,
             KeySemantic opponentSemantic,
-            ConflictCollector collector
+            PairConflictCollector collector
     ) {
         Resource sRes = subjectSemantic.resource();
         Resource oRes = opponentSemantic.resource();
@@ -187,7 +190,7 @@ public interface Evaluator {
             boolean opponentReadOnly,
             boolean interceptive,
             Resource resource,
-            ConflictCollector collector
+            PairConflictCollector collector
     ) {
         if (subjectReadOnly && opponentReadOnly) {
             collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
@@ -216,7 +219,7 @@ public interface Evaluator {
             boolean interceptive,
             Resource ancestor,
             Resource descendent,
-            ConflictCollector collector
+            PairConflictCollector collector
     ) {
         if (subjectReadOnly && opponentReadOnly) {
             collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
@@ -256,7 +259,7 @@ public interface Evaluator {
     static void evaluateIntent(
             KeySemantic subjectSemantic,
             KeySemantic opponentSemantic,
-            ConflictCollector collector
+            PairConflictCollector collector
     ) {
         IntentList sI = subjectSemantic.intents();
         IntentList oI = opponentSemantic.intents();
@@ -274,7 +277,7 @@ public interface Evaluator {
     static void evaluateModality(
             KeySemantic subjectSemantic,
             KeySemantic opponentSemantic,
-            ConflictCollector collector
+            PairConflictCollector collector
     ) {
         Optional<DynamicRisk.ModalJudged> risk = collector.getRisk(DynamicRisk.ModalJudged.class);
         risk.ifPresent(modalJudged -> modalJudged.acceptModality(subjectSemantic.modality(), opponentSemantic.modality()));

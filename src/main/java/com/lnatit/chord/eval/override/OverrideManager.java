@@ -53,12 +53,13 @@ public interface OverrideManager
         return getOverride(Pair.of(key1, key2));
     }
 
+    // Todo inspect
     private static ConflictResult withSourceTag(ConflictResult result, OverrideType type) {
-        List<ConflictRisk> risks = new ArrayList<>(result.risks());
-        if (risks.stream().noneMatch(risk -> risk.tag().equals(type.tag()))) {
-            risks.add(ConflictRisk.create(type.tag(), Severity.SAFE));
+        List<ConflictRisk> metaRisks = new ArrayList<>(result.metaRisks());
+        if (metaRisks.stream().noneMatch(risk -> risk.tag().equals(type.tag()))) {
+            metaRisks.add(ConflictRisk.create(type.tag(), Severity.SAFE));
         }
-        return new ConflictResult(result.severity(), risks);
+        return new ConflictResult(result.severity(), metaRisks, result.pairRisks());
     }
 
     record Pair(String key1, String key2)

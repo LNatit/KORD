@@ -19,13 +19,19 @@ import com.lnatit.chord.eval.resource.Resource;
 import com.lnatit.chord.result.ConflictResult;
 import com.lnatit.chord.result.ConflictRisk;
 import com.lnatit.chord.result.ConflictTag;
+import com.lnatit.chord.result.ContextPair;
 import com.lnatit.chord.result.Severity;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 public interface Codecs {
+            record PairRiskEntry(ContextPair pair, List<ConflictRisk.Static> risks) {}
+
     Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
     Codec<Boolean> OPTIONAL_BOOL_CODEC = Codec.BOOL.orElse(false);
@@ -39,12 +45,41 @@ public interface Codecs {
     ).apply(inst, (tag, isDiagnostic, severity) ->
             ConflictRisk.of(new ConflictTag(tag, isDiagnostic), severity)));
 
+    Codec<ContextPair> CONTEXT_PAIR_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            Codec.STRING.fieldOf("key1").forGetter(ContextPair::key1),
+            Codec.STRING.fieldOf("key2").forGetter(ContextPair::key2)
+    ).apply(inst, ContextPair::of));
+
+    Codec<PairRiskEntry> PAIR_RISK_ENTRY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            CONTEXT_PAIR_CODEC.fieldOf("pair").forGetter(PairRiskEntry::pair),
+            CONFLICT_RISK_CODEC.listOf().optionalFieldOf("risks", List.of()).forGetter(PairRiskEntry::risks)
+    ).apply(inst, PairRiskEntry::new));
+
     Codec<ConflictResult> CONFLICT_RESULT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             SEVERITY_CODEC.fieldOf("severity").forGetter(ConflictResult::severity),
             CONFLICT_RISK_CODEC.listOf().optionalFieldOf("risks", List.of()).forGetter(result ->
-                    result.risks().stream().map(risk -> ConflictRisk.of(risk.tag(), risk.severity())).toList())
-    ).apply(inst, (severity, risks) ->
-            new ConflictResult(severity, risks.stream().map(risk -> (ConflictRisk) risk).toList())));
+                    result.metaRisks().stream().map(risk -> ConflictRisk.of(risk.tag(), risk.severity())).toList()),
+            PAIR_RISK_ENTRY_CODEC.listOf().optionalFieldOf("pair_risks", List.of()).forGetter(result ->
+                    result.pairRisks().entrySet().stream().map(entry -> new PairRiskEntry(
+                            entry.getKey(),
+                            entry.getValue().stream().map(risk -> ConflictRisk.of(risk.tag(), risk.severity())).toList()
+                    )).toList())
+    ).apply(inst, (severity, metaRisks, pairEntries) -> {
+        Map<ContextPair, List<ConflictRisk>> pairRisks = new HashMap<>();
+        for (PairRiskEntry pairEntry : pairEntries) {
+            List<ConflictRisk> risks = new ArrayList<>(pairEntry.risks().stream().map(risk -> (ConflictRisk) risk).toList());
+            pairRisks.merge(pairEntry.pair(), risks, (left, right) -> {
+                ArrayList<ConflictRisk> merged = new ArrayList<>(left);
+                merged.addAll(right);
+                return merged;
+            });
+        }
+        return new ConflictResult(
+                severity,
+                metaRisks.stream().map(risk -> (ConflictRisk) risk).toList(),
+                pairRisks
+        );
+    }));
 
     Codec<Requirement> REQUIREMENT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.STRING.fieldOf("modid").forGetter(Requirement::modid),
