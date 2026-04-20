@@ -1,6 +1,7 @@
 package com.lnatit.chord.data.mutex;
 
 import com.lnatit.chord.Chord;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,6 +11,7 @@ import java.util.Map;
 public record MutexSet(String namespace, List<String> mutexes) {
     private static final Map<String, MutexSet> ALL_SETS = new HashMap<>();
 
+    @Nullable
     public static MutexSet get(String namespace) {
         return ALL_SETS.get(namespace);
     }

@@ -2,6 +2,7 @@ package com.lnatit.chord;
 
 import com.lnatit.chord.data.mutex.MutexSetManager;
 import com.lnatit.chord.data.override.DatapackOverrideReloader;
+import com.lnatit.chord.data.resource.ResourceReloadListener;
 import com.lnatit.chord.data.semantic.KeySemanticManager;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -24,6 +25,7 @@ public class Chord {
 
     private void registerChordReloadListeners(RegisterClientReloadListenersEvent event) {
         event.registerReloadListener(MutexSetManager.INSTANCE);
+        event.registerReloadListener(ResourceReloadListener.INSTANCE);
         event.registerReloadListener(KeySemanticManager.INSTANCE);
         event.registerReloadListener(DatapackOverrideReloader.INSTANCE);
     }

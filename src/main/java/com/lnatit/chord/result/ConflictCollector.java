@@ -4,29 +4,32 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public class ConflictCollector
+public abstract class ConflictCollector
 {
-    private boolean finished = false;
     private final List<ConflictRisk> risks = new ArrayList<>();
 
-    public void withRisk(ConflictRisk risk) {
+    public final void withRisk(ConflictRisk risk) {
         this.risks.add(risk);
     }
 
-    public void withRisk(ConflictTag tag, Severity severity) {
+    public final void withRisk(ConflictTag tag, Severity severity) {
         this.withRisk(ConflictRisk.create(tag, severity));
     }
 
-    public void withDebug(ConflictTag debugTag) {
+    public final void withDebug(ConflictTag debugTag) {
         this.withRisk(ConflictRisk.create(debugTag, Severity.SAFE));
     }
 
-    public void merge(ConflictCollector collector) {
+    protected final void mergeFrom(ConflictCollector collector) {
         this.risks.addAll(collector.risks);
     }
 
-    public <R extends DynamicRisk> Optional<R> getRisk(Class<R> type) {
-        for (ConflictRisk risk : risks) {
+    protected final List<ConflictRisk> snapshotRisks() {
+        return List.copyOf(this.risks);
+    }
+
+    protected final <R extends DynamicRisk> Optional<R> getRiskByType(Class<R> type) {
+        for (ConflictRisk risk : this.risks) {
             if (type.isInstance(risk)) {
                 return Optional.of(type.cast(risk));
             }
@@ -34,21 +37,17 @@ public class ConflictCollector
         return Optional.empty();
     }
 
-    public void setFinished() {
-        this.finished = true;
+    protected final Severity resolveSeverity() {
+        return resolveSeverity(this.risks);
     }
 
-    public boolean finished() {
-        return this.finished;
-    }
-
-    public ConflictResult toResult() {
+    protected static Severity resolveSeverity(List<ConflictRisk> risks) {
         Severity severity = Severity.SAFE;
         for (ConflictRisk risk : risks) {
             if (risk.severity().ordinal() > severity.ordinal()) {
                 severity = risk.severity();
             }
         }
-        return new ConflictResult(severity, this.risks);
+        return severity;
     }
 }

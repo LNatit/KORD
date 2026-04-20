@@ -16,15 +16,15 @@ public record MutexDefinition(Optional<String> namespace, List<Requirement> requ
     /**
      * Valid when mutex entries are non-empty, within 32 entries, and every requirement matches.
      */
-    public boolean isValid() {
+    public boolean isInvalid() {
         if (mutexes.isEmpty()) {
-            return false;
+            return true;
         }
         if (mutexes.size() > 32) {
             Chord.LOGGER.warn("Mutex set has {} entries (max 32), ignored.", mutexes.size());
-            return false;
+            return true;
         }
-        return requirements.stream().allMatch(Requirement::isValid);
+        return !requirements.stream().allMatch(Requirement::isValid);
     }
 }
 

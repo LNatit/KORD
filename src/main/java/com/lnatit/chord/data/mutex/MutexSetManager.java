@@ -42,7 +42,7 @@ public class MutexSetManager extends SimpleJsonResourceReloadListener {
 
             MutexDefinition definitions = result.getOrThrow();
             Chord.LOGGER.debug("Inspecting mutex definitions in '{}'...", id);
-            if (!definitions.isValid()) {
+            if (definitions.isInvalid()) {
                 Chord.LOGGER.info("Mutex definitions in '{}' is invalid and will be ignored.", id);
                 continue;
             }

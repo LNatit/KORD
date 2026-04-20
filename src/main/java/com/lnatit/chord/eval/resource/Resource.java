@@ -1,46 +1,45 @@
 package com.lnatit.chord.eval.resource;
 
+import org.jetbrains.annotations.ApiStatus;
+
 import java.util.HashMap;
 import java.util.Map;
 
-public interface Resource
-{
-    Resource ROOT = new Resource() {
-        @Override
-        public String path() {
-            return "";
-        }
+public record Resource(String path, boolean allowsConcurrentWrites) {
+    private static final Map<String, Resource> RESOURCES = new HashMap<>();
+    public static final Resource ROOT = new Resource("", true);
 
-        @Override
-        public boolean supportsConcurrentWrites() {
-            return true;
-        }
-    };
-
-    String path();
-
-    boolean supportsConcurrentWrites();
-
-    record Node(String path, boolean supportsConcurrentWrites) implements Resource
-    {
+    @Deprecated
+    @ApiStatus.Internal
+    @SuppressWarnings("all")
+    public Resource {
     }
 
-    Map<String, Resource> RESOURCES = new HashMap<>();
-
-    static Resource create(String path, boolean supportsConcurrentWrites) {
-        return RESOURCES.computeIfAbsent(path, p -> new Resource.Node(p, supportsConcurrentWrites));
+    public static void clear() {
+        RESOURCES.clear();
+        RESOURCES.put("", ROOT);
     }
 
-    static Resource create(String path) {
-        return create(path, false);
+    public static Resource getOrCreate(String path) {
+        String normalized = normalizePath(path);
+        return RESOURCES.computeIfAbsent(normalized, p -> new Resource(p, false));
     }
 
-    static Resource of(String path) {
-        return RESOURCES.get(path);
+    public static boolean define(String path, boolean supportsConcurrentWrites) {
+        String normalized = normalizePath(path);
+        boolean exists = RESOURCES.containsKey(normalized);
+        RESOURCES.compute(normalized, (p, existing) -> {
+            if (existing == null) {
+                return new Resource(p, supportsConcurrentWrites);
+            } else {
+                boolean merged = existing.allowsConcurrentWrites() && supportsConcurrentWrites;
+                return new Resource(p, merged);
+            }
+        });
+        return exists;  // 返回 true 表示发生了合并（已存在），false 表示新建
     }
 
-    static boolean overlaps(Resource resource1, Resource resource2) {
-        // TODO
+    public static Resource getLCA(Resource resource1, Resource resource2) {
         String[] parts1 = resource1.path().split("/");
         String[] parts2 = resource2.path().split("/");
 
@@ -52,8 +51,20 @@ public interface Resource
         }
 
         // 拼接 LCA 路径
-        if (lcaIndex == 0) return false;
+        if (lcaIndex == 0) return ROOT;
 
-        return !of(String.join("/", java.util.Arrays.copyOf(parts1, lcaIndex))).supportsConcurrentWrites();
+        return getOrCreate(String.join("/", java.util.Arrays.copyOf(parts1, lcaIndex)));
+    }
+
+
+    private static String normalizePath(String path) {
+        String normalized = path.strip().replace('\\', '/');
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
     }
 }

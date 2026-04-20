@@ -1,46 +1,55 @@
 package com.lnatit.chord.eval.intent;
 
-import java.util.HashSet;
-import java.util.List;
+import org.jetbrains.annotations.ApiStatus;
 
-// TODO
-public interface Intent {
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
 
-    String name();
+public record Intent(String name, int order) implements Comparable<Intent> {
+    private static Map<String, Intent> cache = Map.of();
+    private static boolean decoding = false;
+    private static int nextOrder = 0;
 
-    static Intent of(String name) {
-        //TODO
-        return () -> name;
+    @Deprecated
+    @ApiStatus.Internal
+    @SuppressWarnings("all")
+    public Intent {
     }
 
+    @Override
+    public int compareTo(Intent other) {
+        return Integer.compare(this.order(), other.order());
+    }
 
-
-
-
-
-
-
-
-
-
-
-
-    static boolean hasShared(List<Intent> intents1, List<Intent> intents2) {
-        for (Intent intent1 : intents1) {
-            for (Intent intent2 : intents2) {
-                if (intent1 == intent2) {
-                    return true;
-                }
-            }
+    public static synchronized Intent of(String name) {
+        String cachedName = Objects.requireNonNull(name, "name");
+        Intent existing = cache.get(cachedName);
+        if (existing != null) {
+            return existing;
         }
-        return false;
+        if (!decoding) {
+            throw new IllegalStateException("Unknown intent outside decode stage: " + cachedName);
+        }
+        Intent created = new Intent(cachedName, nextOrder);
+        nextOrder++;
+        cache.put(cachedName, created);
+        return created;
     }
 
-    static boolean contains(List<Intent> parent, List<Intent> subset) {
-        return new HashSet<>(parent).containsAll(subset);
+    public static synchronized void beginDecode() {
+        decoding = true;
+        cache = new LinkedHashMap<>();
     }
 
-    static boolean isIdentical(List<Intent> intents1, List<Intent> intents2) {
-        return false;
+    public static synchronized void endDecode() {
+        cache = Map.copyOf(cache);
+        decoding = false;
+        nextOrder = 0;
+    }
+
+    public static synchronized void clear() {
+        cache = decoding ? new LinkedHashMap<>() : Map.of();
     }
 }
+
