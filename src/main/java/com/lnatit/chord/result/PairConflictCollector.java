@@ -11,7 +11,7 @@ public final class PairConflictCollector extends ConflictCollector
     }
 
     public <R extends DynamicRisk> Optional<R> getRisk(Class<R> type) {
-        return this.getRiskByType(type);
+        return this.getRiskOf(type);
     }
 
     public void setFinished() {

@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.lnatit.chord.data.mutex.MutexDefinition;
 import com.lnatit.chord.data.override.OverrideDefinition;
 import com.lnatit.chord.data.resource.ResourceDefinition;
+import com.lnatit.chord.data.semantic.KeyDefinitions;
 import com.lnatit.chord.eval.KeySemantic;
 import com.lnatit.chord.eval.Modality;
 import com.lnatit.chord.eval.RedirectMode;
@@ -13,25 +14,19 @@ import com.lnatit.chord.eval.context.KeyContext;
 import com.lnatit.chord.eval.intent.Intent;
 import com.lnatit.chord.eval.intent.IntentList;
 import com.lnatit.chord.eval.mutex.StateSet;
-import com.lnatit.chord.data.semantic.KeyDefinitions;
 import com.lnatit.chord.eval.mutex.tree.*;
 import com.lnatit.chord.eval.resource.Resource;
-import com.lnatit.chord.result.ConflictResult;
-import com.lnatit.chord.result.ConflictRisk;
-import com.lnatit.chord.result.ConflictTag;
-import com.lnatit.chord.result.ContextPair;
-import com.lnatit.chord.result.Severity;
+import com.lnatit.chord.result.*;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-import java.util.List;
-import java.util.Map;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-public interface Codecs {
-            record PairRiskEntry(ContextPair pair, List<ConflictRisk.Static> risks) {}
-
+public interface Codecs
+{
     Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
     Codec<Boolean> OPTIONAL_BOOL_CODEC = Codec.BOOL.orElse(false);
@@ -50,24 +45,39 @@ public interface Codecs {
             Codec.STRING.fieldOf("key2").forGetter(ContextPair::key2)
     ).apply(inst, ContextPair::of));
 
-    Codec<PairRiskEntry> PAIR_RISK_ENTRY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-            CONTEXT_PAIR_CODEC.fieldOf("pair").forGetter(PairRiskEntry::pair),
-            CONFLICT_RISK_CODEC.listOf().optionalFieldOf("risks", List.of()).forGetter(PairRiskEntry::risks)
-    ).apply(inst, PairRiskEntry::new));
+    Codec<ContextPair.PairRiskEntry> PAIR_RISK_ENTRY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            CONTEXT_PAIR_CODEC.fieldOf("pair").forGetter(ContextPair.PairRiskEntry::pair),
+            CONFLICT_RISK_CODEC.listOf().optionalFieldOf("risks", List.of()).forGetter(ContextPair.PairRiskEntry::risks)
+    ).apply(inst, ContextPair.PairRiskEntry::new));
 
     Codec<ConflictResult> CONFLICT_RESULT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             SEVERITY_CODEC.fieldOf("severity").forGetter(ConflictResult::severity),
             CONFLICT_RISK_CODEC.listOf().optionalFieldOf("risks", List.of()).forGetter(result ->
-                    result.metaRisks().stream().map(risk -> ConflictRisk.of(risk.tag(), risk.severity())).toList()),
+                                                                                               result.metaRisks()
+                                                                                                     .stream()
+                                                                                                     .map(risk -> ConflictRisk.of(
+                                                                                                             risk.tag(),
+                                                                                                             risk.severity()))
+                                                                                                     .toList()),
             PAIR_RISK_ENTRY_CODEC.listOf().optionalFieldOf("pair_risks", List.of()).forGetter(result ->
-                    result.pairRisks().entrySet().stream().map(entry -> new PairRiskEntry(
-                            entry.getKey(),
-                            entry.getValue().stream().map(risk -> ConflictRisk.of(risk.tag(), risk.severity())).toList()
-                    )).toList())
+                                                                                                      result.pairRisks()
+                                                                                                            .entrySet()
+                                                                                                            .stream()
+                                                                                                            .map(entry -> new ContextPair.PairRiskEntry(
+                                                                                                                    entry.getKey(),
+                                                                                                                    entry.getValue()
+                                                                                                                         .stream()
+                                                                                                                         .map(risk -> ConflictRisk.of(
+                                                                                                                                 risk.tag(),
+                                                                                                                                 risk.severity()))
+                                                                                                                         .toList()
+                                                                                                            ))
+                                                                                                            .toList())
     ).apply(inst, (severity, metaRisks, pairEntries) -> {
         Map<ContextPair, List<ConflictRisk>> pairRisks = new HashMap<>();
-        for (PairRiskEntry pairEntry : pairEntries) {
-            List<ConflictRisk> risks = new ArrayList<>(pairEntry.risks().stream().map(risk -> (ConflictRisk) risk).toList());
+        for (ContextPair.PairRiskEntry pairEntry : pairEntries) {
+            List<ConflictRisk> risks =
+                    new ArrayList<>(pairEntry.risks().stream().map(risk -> (ConflictRisk) risk).toList());
             pairRisks.merge(pairEntry.pair(), risks, (left, right) -> {
                 ArrayList<ConflictRisk> merged = new ArrayList<>(left);
                 merged.addAll(right);
@@ -100,14 +110,17 @@ public interface Codecs {
 
     Codec<MutexDefinition> MUTEX_DEFINITIONS_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.STRING.optionalFieldOf("namespace").forGetter(MutexDefinition::namespace),
-            REQUIREMENT_CODEC.listOf().optionalFieldOf("requirements", List.of()).forGetter(MutexDefinition::requirements),
+            REQUIREMENT_CODEC.listOf()
+                             .optionalFieldOf("requirements", List.of())
+                             .forGetter(MutexDefinition::requirements),
             Codec.STRING.listOf().fieldOf("mutexes").forGetter(MutexDefinition::mutexes)
     ).apply(inst, MutexDefinition::new));
 
     Codec<ResourceDefinition> RESOURCE_DEFINITION_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             REQUIREMENT_CODEC.optionalFieldOf("requirement").forGetter(ResourceDefinition::requirement),
             Codec.STRING.optionalFieldOf("path").forGetter(ResourceDefinition::path),
-            OPTIONAL_BOOL_CODEC.fieldOf("supports_concurrent_writes").forGetter(ResourceDefinition::supportsConcurrentWrites)
+            OPTIONAL_BOOL_CODEC.fieldOf("supports_concurrent_writes")
+                               .forGetter(ResourceDefinition::supportsConcurrentWrites)
     ).apply(inst, ResourceDefinition::new));
 
     Codec<LeafNode> LEAF_CODEC = RecordCodecBuilder.create(inst -> inst.group(
@@ -119,8 +132,9 @@ public interface Codecs {
     Codec<NotNode> NOT_CODEC = Codec.lazyInitialized(Codecs::notCodec);
     Codec<TreeNode> TREE_CODEC =
             Codec.withAlternative((Codec<TreeNode>) (Codec<? extends TreeNode>) LEAF_CODEC,
-                    Codec.withAlternative((Codec<TreeNode>) (Codec<? extends TreeNode>) AND_CODEC,
-                            Codec.withAlternative((Codec<TreeNode>) (Codec<? extends TreeNode>) OR_CODEC, NOT_CODEC)));
+                                  Codec.withAlternative((Codec<TreeNode>) (Codec<? extends TreeNode>) AND_CODEC,
+                                                        Codec.withAlternative((Codec<TreeNode>) (Codec<? extends TreeNode>) OR_CODEC,
+                                                                              NOT_CODEC)));
 
     // TODO optimize listCodec
     Codec<StateSet> STATES_CODEC = TREE_CODEC.xmap(TreeNode::toStateSet, stateSet -> new AndNode(List.of()));
@@ -130,7 +144,7 @@ public interface Codecs {
     Codec<IntentList> INTENT_LIST_CODEC = INTENT_CODEC.listOf().xmap(IntentList::of, IntentList::values);
     Codec<Modality> MODALITY_CODEC = enumCodec(Modality.class).orElse(Modality.PRESS);
 
-//    Codec<IKeyContext.Lookup> LOOKUP_CODEC;
+    //    Codec<IKeyContext.Lookup> LOOKUP_CODEC;
     Codec<KeyContext> CONTEXT_CODEC = enumCodec(KeyContext.class).orElse(KeyContext.AS_IS);
 
     Codec<? extends IKeyContext> ICONTEXT_CODEC = CONTEXT_CODEC;
@@ -144,7 +158,9 @@ public interface Codecs {
             MODALITY_CODEC.fieldOf("modality").forGetter(KeySemantic::modality)).apply(inst, KeySemantic::new));
 
     Codec<KeyDefinitions.SemanticEntry> SEMANTIC_ENTRY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-            ((Codec<IKeyContext>) ICONTEXT_CODEC).listOf().fieldOf("contexts").forGetter(KeyDefinitions.SemanticEntry::contexts),
+            ((Codec<IKeyContext>) ICONTEXT_CODEC).listOf()
+                                                 .fieldOf("contexts")
+                                                 .forGetter(KeyDefinitions.SemanticEntry::contexts),
             Codec.STRING.optionalFieldOf("mod_version_range").forGetter(KeyDefinitions.SemanticEntry::modVersionRange),
             (SEMANTIC_CODEC).fieldOf("semantic").forGetter(KeyDefinitions.SemanticEntry::semantic)
     ).apply(inst, KeyDefinitions.SemanticEntry::new));
@@ -165,7 +181,8 @@ public interface Codecs {
         return Codec.STRING.xmap(str -> {
             try {
                 return Enum.valueOf(enumType, str.toUpperCase());
-            } catch (IllegalArgumentException e) {
+            }
+            catch (IllegalArgumentException e) {
                 throw new RuntimeException("Invalid value '" + str + "' for enum " + enumType.getSimpleName(), e);
             }
         }, Enum::name);

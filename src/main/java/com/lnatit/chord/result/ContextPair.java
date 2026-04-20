@@ -2,6 +2,7 @@ package com.lnatit.chord.result;
 
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
+import java.util.List;
 import java.util.Objects;
 
 public record ContextPair(String key1, String key2)
@@ -27,5 +28,7 @@ public record ContextPair(String key1, String key2)
     private static String contextKey(IKeyConflictContext context) {
         return context.getClass().getName() + "#" + context;
     }
+
+    public record PairRiskEntry(ContextPair pair, List<ConflictRisk.Static> risks) {}
 }
 

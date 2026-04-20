@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+// TODO split meta and pair, calculate severity on each Pair
 public record ConflictResult(Severity severity, List<ConflictRisk> metaRisks, Map<ContextPair, List<ConflictRisk>> pairRisks)
 {
     public static final ConflictResult SAFE = new ConflictResult(Severity.SAFE, List.of(), Map.of());

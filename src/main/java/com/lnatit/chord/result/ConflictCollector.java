@@ -28,7 +28,7 @@ public abstract class ConflictCollector
         return List.copyOf(this.risks);
     }
 
-    protected final <R extends DynamicRisk> Optional<R> getRiskByType(Class<R> type) {
+    protected final <R extends DynamicRisk> Optional<R> getRiskOf(Class<R> type) {
         for (ConflictRisk risk : this.risks) {
             if (type.isInstance(risk)) {
                 return Optional.of(type.cast(risk));
