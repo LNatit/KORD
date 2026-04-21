@@ -45,10 +45,15 @@ Key design: Each stage can mark results as **finished** (preventing further eval
 ## Critical Semantic Concepts
 
 ### KeySemantic Record
-Defined in `eval/KeySemantic.java` - the immutable data container:
+Semantic payload is split into a key-level wrapper plus per-context record:
 ```java
-record KeySemantic(StateSet states, boolean intercept, RedirectMode redirectMode,
-                   Resource resource, boolean readOnly, List<Intent> intents, Modality modality)
+public interface KeySemantic {
+    KeySemantic AS_IS = ...;
+    record Precise(Map<KeyContext, ContextSemantic> semantics) implements KeySemantic {}
+}
+
+record ContextSemantic(StateSet states, boolean intercept, RedirectMode redirectMode,
+                       Resource resource, boolean readOnly, IntentList intents, Modality modality)
 ```
 
 ### State Mutex vs Subset
@@ -71,17 +76,18 @@ Detected in `evaluateResource()`: overlapping resources trigger CONCURRENT_WRITE
 Keys and their semantics loaded from `key_semantics/**/*.json` at client reload:
 - Entry point: `KeySemanticManager` (extends `SimpleJsonResourceReloadListener`)
 - Parsed via: `com.lnatit.chord.data.Codecs.KEYS_CODEC`
-- Applied to KeyMapping via Mixin-injected `SemanticalKey.chord$addSemantic()`
+- Applied to KeyMapping via Mixin-injected `SemanticalKey.chord$setSemantic()`
 
-**Three reload listeners** are registered in `Chord.java`:
+**Four reload listeners** are registered in `Chord.java`:
 1. `MutexSetManager.INSTANCE` — loads mutex group definitions from `mutex_sets/**/*.json` (via `data/mutex/`)
-2. `KeySemanticManager.INSTANCE` — loads key semantic definitions from `key_semantics/**/*.json`
-3. `DatapackOverrideReloader.INSTANCE` — loads conflict overrides from `builtin_overrides/**/*.json`
+2. `ResourceReloadListener.INSTANCE` — loads resource concurrency definitions from `resources/**/*.json`
+3. `KeySemanticManager.INSTANCE` — loads key semantic definitions from `key_semantics/**/*.json`
+4. `DatapackOverrideReloader.INSTANCE` — loads conflict overrides from `builtin_overrides/**/*.json`
 
 ### Mixin Integration
 - **Client mixin:** `client.MixinKeyMapping` - Extends KeyMapping with semantic storage
 - Config: `src/main/resources/chord.mixins.json`
-- Accesses KeyMapping semantics via cast: `((SemanticalKey) keyMapping).chord$getSemanticEntries()`
+- Accesses KeyMapping semantics via cast: `((SemanticalKey) keyMapping).chord$getSemantic()`
 
 ### Result Types
 `com.lnatit.chord.result/` package defines conflict output:
@@ -99,6 +105,7 @@ Keys and their semantics loaded from `key_semantics/**/*.json` at client reload:
 # Standard development setup
 ./gradlew --refresh-dependencies    # Recover from dependency issues
 ./gradlew clean                     # Full reset (doesn't affect source code)
+./gradlew build                     # CI-equivalent full build
 
 # Run configurations (defined in build.gradle)
 ./gradlew runClient                 # Launch client with mod loaded
@@ -116,11 +123,9 @@ Keys and their semantics loaded from `key_semantics/**/*.json` at client reload:
 
 ```
 src/main/java/com/lnatit/chord/
-├── Chord.java                      # Mod entry point, registers 3 reload listeners
+├── Chord.java                      # Mod entry point, registers 4 reload listeners
 ├── eval/
 │   ├── Evaluator.java             # Core pipeline as interface with static methods (CRITICAL)
-│   ├── KeySemantic.java           # Record of 7 semantic dimensions; KeySemantic.DEFAULT available
-│   ├── SemanticalKey.java         # Interface injected onto KeyMapping via Mixin
 │   ├── Modality.java              # P/H/T mode evaluation matrix
 │   ├── RedirectMode.java          # Context transition evaluation matrix
 │   ├── context/                   # IKeyContext adapter layer
@@ -129,9 +134,14 @@ src/main/java/com/lnatit/chord/
 │   │   ├── StateSet.java          # Boolean expression over mutex groups
 │   │   └── tree/                  # AndNode, OrNode, NotNode, LeafNode, TreeNode
 │   ├── override/
-│   │   ├── OverrideManager.java   # Static map of overrides keyed by Type priority
-│   │   └── Type.java              # Override source types: USER > PLAYER > CREATOR > BUILTIN
+│   │   ├── OverrideManager.java   # Static map of overrides keyed by OverrideType priority
+│   │   └── OverrideType.java      # Override source types: USER > PLAYER > CREATOR > BUILTIN
 │   └── resource/                  # Resource concurrency properties
+├── semantic/
+│   ├── ContextSemantic.java       # Record of 7 semantic dimensions; ContextSemantic.DEFAULT available
+│   ├── KeySemantic.java           # Key-level semantic container (AS_IS / Precise)
+│   ├── KeyContext.java            # Key context wrapper type for semantic maps
+│   └── SemanticalKey.java         # Interface injected onto KeyMapping via Mixin
 ├── data/
 │   ├── Codecs.java                # JsonCodec definitions (KEYS_CODEC, OVERRIDE_DEFINITION_CODEC, MUTEX_DEFINITIONS_CODEC, etc.)
 │   ├── Requirement.java           # Mod-id + version-range requirement check for conditional entries
@@ -142,6 +152,9 @@ src/main/java/com/lnatit/chord/
 │   ├── semantic/
 │   │   ├── KeySemanticManager.java  # Reload listener for key_semantics/**/*.json
 │   │   └── KeyDefinitions.java      # Deserialized JSON structure
+│   ├── resource/
+│   │   ├── ResourceReloadListener.java  # Reload listener for resources/**/*.json
+│   │   └── ResourceDefinition.java      # Deserialized JSON resource entry
 │   └── override/
 │       ├── DatapackOverrideReloader.java  # Reload listener for builtin_overrides/**/*.json
 │       └── OverrideDefinition.java        # Deserialized JSON override entry
@@ -153,12 +166,13 @@ src/main/java/com/lnatit/chord/
 ## Common Development Patterns
 
 ### Adding a New Evaluation Dimension
-1. Extend `KeySemantic` record with new field
+1. Extend `ContextSemantic` record with new field
 2. Create evaluation method in `Evaluator` following the pattern of `evaluateStateMutex()`:
    - Query both semantics
    - Populate collector with debug tags or dynamic risks
    - Set finished() if this dimension alone determines outcome
-3. Call new evaluator from `eval()` pipeline in correct ordering
+3. Update `Codecs.SEMANTIC_CODEC` so JSON datapacks can decode the new field
+4. Call new evaluator from `eval()` pipeline in correct ordering
 
 ### Matrix-Based Decision Logic
 Several subsystems use 2D enum matrices (RedirectMode combinations, Modality combinations):
@@ -181,7 +195,7 @@ Create a JSON file under `src/main/resources/data/chord/builtin_overrides/` deco
 ```json
 { "is_builtin": true, "key1": { "name": "key.mod.action1" }, "key2": { "name": "key.mod.action2" }, "result": { "severity": "SAFE", "risks": [] } }
 ```
-- `is_builtin: true` → stored as `Type.BUILTIN`; `false` → `Type.CREATOR`
+- `is_builtin: true` → stored as `OverrideType.BUILTIN`; `false` → `OverrideType.CREATOR`
 - Pair lookup is order-independent (symmetric `equals`/`hashCode` in `OverrideManager.Pair`
 - Priority order: USER > PLAYER > CREATOR > BUILTIN (see `OverrideManager.PRIORITY`)
 
@@ -190,6 +204,13 @@ Create a JSON file under `src/main/resources/data/chord/mutex_sets/` decoded via
 ```json
 { "namespace": "mymod", "requirements": [{ "modid": "mymod" }], "mutexes": ["state_a", "state_b", "state_c"] }
 ```
+
+### Adding Resource Definitions (datapack)
+Create a JSON file under `src/main/resources/data/chord/resources/` decoded via `Codecs.RESOURCE_DEFINITION_CODEC`:
+```json
+{ "path": "player/inventory", "supports_concurrent_writes": false }
+```
+- If `path` is omitted, `ResourceReloadListener` falls back to the JSON resource id path.
 
 ## Documentation Resources
 
@@ -212,16 +233,16 @@ Create a JSON file under `src/main/resources/data/chord/mutex_sets/` decoded via
 When implementing new features:
 1. **Entry:** `Chord.java` - Mod initialization and reload listener registration
 2. **Core Logic:** `Evaluator.java` - All conflict detection rules
-3. **Data Model:** `KeySemantic.java` - Semantic dimensions representation
+3. **Data Model:** `ContextSemantic.java` + `KeySemantic.java` - Semantic dimensions and key-level wrapper
 4. **Configuration:** `neoforge.mods.toml` template - Mod metadata (auto-expanded at build)
 5. **Mixins:** `chord.mixins.json` - Bytecode injection declarations
 
 ## Common Pitfalls
 
 - **Stage Order Matters:** Never reorder evaluateXXX() calls - later stages depend on earlier risk state
-- **Immutability:** KeySemantic is immutable; all modifications go through ConflictCollector
+- **Immutability:** `ContextSemantic` is immutable; all runtime conflict adjustments go through `ConflictCollector`
 - **Context Overlap:** Use `isContextOverlapping()` before evaluating semantics - prevents false positives
-- **Resource Null:** Resource field can be null (bindings without specific resource targets)
+- **Resource Root Sentinel:** Use `Resource.ROOT` to represent no specific target; avoid nullable resource semantics
 - **State Subset Escalation:** Only escalates StateSubset risk if interception is present - track this coupling
 - **Evaluator is an interface:** Do not attempt to instantiate it; call static methods directly (`Evaluator.conflicts(...)`, `Evaluator.eval(...)`)
 - **Override cleared on reload:** `DatapackOverrideReloader` clears both `BUILTIN` and `CREATOR` types on each reload — user-level overrides (`USER`, `PLAYER`) must be repopulated separately

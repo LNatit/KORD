@@ -3,6 +3,7 @@ package com.lnatit.chord.data.semantic;
 import com.google.gson.JsonElement;
 import com.lnatit.chord.Chord;
 import com.lnatit.chord.data.Codecs;
+import com.lnatit.chord.semantic.KeySemantic;
 import com.lnatit.chord.semantic.SemanticalKey;
 import com.lnatit.chord.eval.context.IKeyContext;
 import com.lnatit.chord.eval.intent.Intent;
@@ -27,7 +28,7 @@ public class KeySemanticManager extends SimpleJsonResourceReloadListener {
     protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager resourceManager, ProfilerFiller profiler) {
         profiler.push("chord_key_semantics");
 
-        KeyMapping.ALL.values().forEach(key -> ((SemanticalKey) key).chord$clearSemantics());
+        KeyMapping.ALL.values().forEach(key -> ((SemanticalKey) key).chord$setSemantic(KeySemantic.AS_IS));
         Intent.beginDecode();
         try {
             for (Map.Entry<ResourceLocation, JsonElement> entry : map.entrySet()) {
