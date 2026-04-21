@@ -3,7 +3,7 @@ package com.lnatit.chord.data.semantic;
 import com.google.gson.JsonElement;
 import com.lnatit.chord.Chord;
 import com.lnatit.chord.data.Codecs;
-import com.lnatit.chord.eval.SemanticalKey;
+import com.lnatit.chord.semantic.SemanticalKey;
 import com.lnatit.chord.eval.context.IKeyContext;
 import com.lnatit.chord.eval.intent.Intent;
 import com.mojang.serialization.DataResult;
@@ -43,22 +43,24 @@ public class KeySemanticManager extends SimpleJsonResourceReloadListener {
 
                 Chord.LOGGER.debug("Inspecting key definitions in '{}'...", id);
                 if (!definitions.checkValid()) {
-                    Chord.LOGGER.info("Pair definitions in '{}' is invalid and will be ignored.", id);
+                    Chord.LOGGER.info("Context definitions in '{}' is invalid and will be ignored.", id);
                     continue;
                 }
                 for (KeyDefinitions.KeyDefinition keyDef : definitions.keys()) {
                     KeyMapping key = SemanticalKey.lookup(keyDef.name());
                     if (key == null) {
-                        Chord.LOGGER.warn("Pair '{}' not found for key semantics '{}', ignored.", keyDef.name(), id);
+                        Chord.LOGGER.warn("Context '{}' not found for key semantics '{}', ignored.", keyDef.name(), id);
                         continue;
                     }
-                    for (KeyDefinitions.SemanticEntry sematic : keyDef.semantics()) {
-                        for (IKeyContext context : sematic.contexts()) {
-                            ((SemanticalKey) key).chord$addSemantic(context, sematic.semantic());
-                        }
-                    }
+                    ((SemanticalKey) key).chord$setSemantic(keyDef.toSemantic());
+
+//                    for (KeyDefinitions.SemanticEntry sematic : keyDef.semantics()) {
+//                        for (IKeyContext context : sematic.contexts()) {
+//                            ((SemanticalKey) key).chord$addSemantic(context, sematic.semantic());
+//                        }
+//                    }
                 }
-                Chord.LOGGER.info("Pair definitions in '{}' loaded with {} valid keys.", id, definitions.keys().size());
+                Chord.LOGGER.info("Context definitions in '{}' loaded with {} valid keys.", id, definitions.keys().size());
             }
         } finally {
             Intent.endDecode();

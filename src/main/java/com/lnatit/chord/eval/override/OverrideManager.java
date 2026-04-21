@@ -59,7 +59,7 @@ public interface OverrideManager
         if (metaRisks.stream().noneMatch(risk -> risk.tag().equals(type.tag()))) {
             metaRisks.add(ConflictRisk.create(type.tag(), Severity.SAFE));
         }
-        return new ConflictResult(result.severity(), metaRisks, result.pairRisks());
+        return null;
     }
 
     record Pair(String key1, String key2)

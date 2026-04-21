@@ -1,4 +1,4 @@
-package com.lnatit.chord.eval;
+package com.lnatit.chord.semantic;
 
 import com.lnatit.chord.eval.context.IKeyContext;
 import net.minecraft.client.KeyMapping;
@@ -11,17 +11,9 @@ import java.util.Set;
 
 public interface SemanticalKey extends IKeyMappingExtension
 {
-    void chord$addSemantic(IKeyContext context, KeySemantic semantic);
+    KeySemantic chord$getSemantic();
 
-    KeySemantic chord$getSemantic(IKeyContext context);
-
-    Set<Map.Entry<IKeyConflictContext, KeySemantic>> chord$getSemanticEntries();
-
-    void chord$clearSemantics();
-
-    default IKeyConflictContext chord$getSemanticalConflictCtx(IKeyContext context) {
-        return context.transform(getKeyConflictContext());
-    }
+    void chord$setSemantic(KeySemantic semantic);
 
     @Nullable
     static KeyMapping lookup(String name) {

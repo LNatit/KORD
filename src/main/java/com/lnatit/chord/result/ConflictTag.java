@@ -36,8 +36,6 @@ public record ConflictTag(String shortCode, boolean isDiagnostic)
 
     // T player intent
     public static final ConflictTag INTENT_SHARE = ConflictTag.simple("t_is");
-    @Deprecated
-    public static final ConflictTag INTENT_SHARED = ConflictTag.simple("t_ii");
 
     // M operation modality
     public static final ConflictTag OPERATION_MATCH = ConflictTag.simple("m_om");

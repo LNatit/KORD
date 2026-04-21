@@ -6,7 +6,7 @@ import com.lnatit.chord.util.Supplier;
 @FunctionalInterface
 public interface ConflictInfo
 {
-    void attachTo(PairConflictCollector collector);
+    void attachTo(ConflictCollector.Context collector);
 
     private static Provider<ConflictInfo> of(Provider<ConflictRisk> riskProvider, boolean meltdown) {
         return isReal -> collector -> {

@@ -6,7 +6,7 @@ import com.lnatit.chord.data.mutex.MutexDefinition;
 import com.lnatit.chord.data.override.OverrideDefinition;
 import com.lnatit.chord.data.resource.ResourceDefinition;
 import com.lnatit.chord.data.semantic.KeyDefinitions;
-import com.lnatit.chord.eval.KeySemantic;
+import com.lnatit.chord.semantic.ContextSemantic;
 import com.lnatit.chord.eval.Modality;
 import com.lnatit.chord.eval.RedirectMode;
 import com.lnatit.chord.eval.context.IKeyContext;
@@ -20,10 +20,7 @@ import com.lnatit.chord.result.*;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public interface Codecs
 {
@@ -46,50 +43,11 @@ public interface Codecs
     ).apply(inst, ContextPair::of));
 
     Codec<ContextPair.PairRiskEntry> PAIR_RISK_ENTRY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-            CONTEXT_PAIR_CODEC.fieldOf("pair").forGetter(ContextPair.PairRiskEntry::pair),
+            CONTEXT_PAIR_CODEC.fieldOf("context").forGetter(ContextPair.PairRiskEntry::pair),
             CONFLICT_RISK_CODEC.listOf().optionalFieldOf("risks", List.of()).forGetter(ContextPair.PairRiskEntry::risks)
     ).apply(inst, ContextPair.PairRiskEntry::new));
 
-    Codec<ConflictResult> CONFLICT_RESULT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-            SEVERITY_CODEC.fieldOf("severity").forGetter(ConflictResult::severity),
-            CONFLICT_RISK_CODEC.listOf().optionalFieldOf("risks", List.of()).forGetter(result ->
-                                                                                               result.metaRisks()
-                                                                                                     .stream()
-                                                                                                     .map(risk -> ConflictRisk.of(
-                                                                                                             risk.tag(),
-                                                                                                             risk.severity()))
-                                                                                                     .toList()),
-            PAIR_RISK_ENTRY_CODEC.listOf().optionalFieldOf("pair_risks", List.of()).forGetter(result ->
-                                                                                                      result.pairRisks()
-                                                                                                            .entrySet()
-                                                                                                            .stream()
-                                                                                                            .map(entry -> new ContextPair.PairRiskEntry(
-                                                                                                                    entry.getKey(),
-                                                                                                                    entry.getValue()
-                                                                                                                         .stream()
-                                                                                                                         .map(risk -> ConflictRisk.of(
-                                                                                                                                 risk.tag(),
-                                                                                                                                 risk.severity()))
-                                                                                                                         .toList()
-                                                                                                            ))
-                                                                                                            .toList())
-    ).apply(inst, (severity, metaRisks, pairEntries) -> {
-        Map<ContextPair, List<ConflictRisk>> pairRisks = new HashMap<>();
-        for (ContextPair.PairRiskEntry pairEntry : pairEntries) {
-            List<ConflictRisk> risks =
-                    new ArrayList<>(pairEntry.risks().stream().map(risk -> (ConflictRisk) risk).toList());
-            pairRisks.merge(pairEntry.pair(), risks, (left, right) -> {
-                ArrayList<ConflictRisk> merged = new ArrayList<>(left);
-                merged.addAll(right);
-                return merged;
-            });
-        }
-        return new ConflictResult(
-                severity,
-                metaRisks.stream().map(risk -> (ConflictRisk) risk).toList(),
-                pairRisks
-        );
-    }));
+    Codec<ConflictResult> CONFLICT_RESULT_CODEC;
 
     Codec<Requirement> REQUIREMENT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.STRING.fieldOf("modid").forGetter(Requirement::modid),
@@ -148,14 +106,14 @@ public interface Codecs
     Codec<KeyContext> CONTEXT_CODEC = enumCodec(KeyContext.class).orElse(KeyContext.AS_IS);
 
     Codec<? extends IKeyContext> ICONTEXT_CODEC = CONTEXT_CODEC;
-    Codec<KeySemantic> SEMANTIC_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-            STATES_CODEC.fieldOf("states").forGetter(KeySemantic::states),
-            OPTIONAL_BOOL_CODEC.fieldOf("intercept").forGetter(KeySemantic::intercept),
-            REDIRECT_CODEC.fieldOf("redirect_mode").forGetter(KeySemantic::redirectMode),
-            RESOURCE_CODEC.fieldOf("resource").forGetter(KeySemantic::resource),
-            OPTIONAL_BOOL_CODEC.fieldOf("read_only").forGetter(KeySemantic::readOnly),
-            INTENT_LIST_CODEC.fieldOf("intents").forGetter(KeySemantic::intents),
-            MODALITY_CODEC.fieldOf("modality").forGetter(KeySemantic::modality)).apply(inst, KeySemantic::new));
+    Codec<ContextSemantic> SEMANTIC_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            STATES_CODEC.fieldOf("states").forGetter(ContextSemantic::states),
+            OPTIONAL_BOOL_CODEC.fieldOf("intercept").forGetter(ContextSemantic::intercept),
+            REDIRECT_CODEC.fieldOf("redirect_mode").forGetter(ContextSemantic::redirectMode),
+            RESOURCE_CODEC.fieldOf("resource").forGetter(ContextSemantic::resource),
+            OPTIONAL_BOOL_CODEC.fieldOf("read_only").forGetter(ContextSemantic::readOnly),
+            INTENT_LIST_CODEC.fieldOf("intents").forGetter(ContextSemantic::intents),
+            MODALITY_CODEC.fieldOf("modality").forGetter(ContextSemantic::modality)).apply(inst, ContextSemantic::new));
 
     Codec<KeyDefinitions.SemanticEntry> SEMANTIC_ENTRY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             ((Codec<IKeyContext>) ICONTEXT_CODEC).listOf()

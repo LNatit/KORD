@@ -2,11 +2,9 @@ package com.lnatit.chord.result;
 
 import com.lnatit.chord.util.Supplier;
 
-public interface ConflictRisk
+public sealed interface ConflictRisk extends Severity.Supplier permits ConflictRisk.Static, DynamicRisk
 {
     ConflictTag tag();
-
-    Severity severity();
 
     static ConflictRisk create(ConflictTag tag, Severity severity) {
         return of(tag, severity);

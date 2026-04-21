@@ -1,17 +1,18 @@
 /**
- * TODO inspect needed!!!
  * Result-layer model for conflict evaluation.
  *
- * <p>Key design points after collector refactor:</p>
+ * <p>Current design assumptions:</p>
  * <ul>
- *     <li>{@link com.lnatit.chord.result.ContextPair} is unordered, so (A, B) and (B, A)
- *     are merged into the same key.</li>
- *     <li>{@link com.lnatit.chord.result.ConflictResult} stores pair-scoped risks in
- *     {@code Map<ContextPair, List<ConflictRisk>>}, plus a separate meta-risk list.</li>
- *     <li>{@link com.lnatit.chord.result.PairConflictCollector} is dedicated to a single
- *     semantic-context pair and owns mutable stage state such as {@code finished} and dynamic-risk lookup.</li>
- *     <li>{@link com.lnatit.chord.result.MetaConflictCollector} aggregates meta tags and pair results,
- *     and is the only collector that can emit final {@link com.lnatit.chord.result.ConflictResult}.</li>
+ *     <li>{@link com.lnatit.chord.result.ContextPair} is directional. (A, B) and (B, A)
+ *     are treated as different entries and are not normalized.</li>
+ *     <li>{@link com.lnatit.chord.result.ConflictCollector.Context} owns mutable stage-local
+ *     state ({@code finished} and dynamic risk lookup) for one directed context pair.</li>
+ *     <li>{@link com.lnatit.chord.result.ConflictCollector.Meta} stores meta risks and
+ *     context risks as collected; there is no cross-pair dedup or merge policy by design.</li>
+ *     <li>{@link com.lnatit.chord.result.ConflictResult} is the final immutable snapshot with
+ *     global severity, meta risks, and context-scoped risk lists.</li>
+ *     <li>Evaluator stage ordering is defined in {@link com.lnatit.chord.eval.Evaluator}
+ *     and is considered stable in the current architecture.</li>
  * </ul>
  */
 @ParametersAreNonnullByDefault

@@ -3,20 +3,11 @@ package com.lnatit.chord.result;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
 import java.util.List;
-import java.util.Objects;
 
 public record ContextPair(String key1, String key2)
 {
-    public ContextPair {
-        key1 = Objects.requireNonNull(key1, "key1");
-        key2 = Objects.requireNonNull(key2, "key2");
-        if (key1.compareTo(key2) > 0) {
-            String tmp = key1;
-            key1 = key2;
-            key2 = tmp;
-        }
-    }
-
+    // TODO: Introduce an IKeyConflictContext wrapper that carries translation key
+    // and implements Comparable for deterministic ordered traversal.
     public static ContextPair of(String key1, String key2) {
         return new ContextPair(key1, key2);
     }

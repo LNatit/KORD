@@ -4,7 +4,7 @@ import com.lnatit.chord.eval.Modality;
 
 // maybe we should split dynamic with informational?
 // Do we have pure informational?
-public abstract class DynamicRisk implements ConflictRisk
+public abstract non-sealed class DynamicRisk implements ConflictRisk
 {
     private Severity severity;
 

@@ -5,6 +5,8 @@ import com.lnatit.chord.eval.mutex.StateSet;
 import com.lnatit.chord.eval.override.OverrideManager;
 import com.lnatit.chord.eval.resource.Resource;
 import com.lnatit.chord.result.*;
+import com.lnatit.chord.semantic.ContextSemantic;
+import com.lnatit.chord.semantic.SemanticalKey;
 import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
@@ -16,9 +18,9 @@ public interface Evaluator {
      * @see KeyMapping#same(KeyMapping)
      */
     static ConflictResult conflicts(KeyMapping subject, KeyMapping opponent) {
-        MetaConflictCollector collector = new MetaConflictCollector();
+        ConflictCollector.Meta collector = ConflictCollector.meta();
 
-        // Physical Pair
+        // Physical Context
         if (!isSameKey(subject, opponent)) {
             // hardware_mismatch
             collector.withDebug(ConflictTag.HARDWARE_MISMATCH);
@@ -31,8 +33,8 @@ public interface Evaluator {
             return override.get();
         }
 
-        for (Map.Entry<IKeyConflictContext, KeySemantic> sEntry : ((SemanticalKey) subject).chord$getSemanticEntries()) {
-            for (Map.Entry<IKeyConflictContext, KeySemantic> oEntry : ((SemanticalKey) opponent).chord$getSemanticEntries()) {
+        for (Map.Entry<IKeyConflictContext, ContextSemantic> sEntry : ((SemanticalKey) subject).chord$getSemanticEntries()) {
+            for (Map.Entry<IKeyConflictContext, ContextSemantic> oEntry : ((SemanticalKey) opponent).chord$getSemanticEntries()) {
                 // Context routing
                 if (!isContextOverlapping(sEntry.getKey(), oEntry.getKey())) {
                     // context_routed
@@ -40,7 +42,7 @@ public interface Evaluator {
                     continue;
                 }
 
-                collector.mergePair(
+                collector.merge(
                         ContextPair.of(sEntry.getKey(), oEntry.getKey()),
                         eval(sEntry.getValue(), oEntry.getValue())
                 );
@@ -61,8 +63,8 @@ public interface Evaluator {
         return subjectContext.conflicts(opponentContext) || opponentContext.conflicts(subjectContext);
     }
 
-    static PairConflictCollector eval(KeySemantic subject, KeySemantic opponent) {
-        PairConflictCollector collector = new PairConflictCollector();
+    static ConflictCollector.Context eval(ContextSemantic subject, ContextSemantic opponent) {
+        ConflictCollector.Context collector = ConflictCollector.context();
 
         // State mutex
         evaluateStateMutex(subject, opponent, collector);
@@ -92,7 +94,7 @@ public interface Evaluator {
         return collector;
     }
 
-    static void evaluateStateMutex(KeySemantic subject, KeySemantic opponent, PairConflictCollector collector) {
+    static void evaluateStateMutex(ContextSemantic subject, ContextSemantic opponent, ConflictCollector.Context collector) {
         StateSet subjectStates = subject.states();
         StateSet opponentStates = opponent.states();
         if (StateSet.isMutex(subjectStates, opponentStates)) {
@@ -110,16 +112,16 @@ public interface Evaluator {
     }
 
     static void evaluateIntercept(
-            KeySemantic subjectSemantic,
-            KeySemantic opponentSemantic,
-            PairConflictCollector collector
+            ContextSemantic subjectSemantic,
+            ContextSemantic opponentSemantic,
+            ConflictCollector.Context collector
     ) {
         // Hijack eval depends on other contexts, so we don't use matrix indexing...
         boolean si = subjectSemantic.intercept();
         boolean oi = opponentSemantic.intercept();
 
         if (si || oi) {
-            Optional<DynamicRisk.StateSubset> risk = collector.getRisk(DynamicRisk.StateSubset.class);
+            Optional<DynamicRisk.StateSubset> risk = collector.getRiskOf(DynamicRisk.StateSubset.class);
             if (risk.isPresent() && (risk.get().subjectIsSubset() == si || risk.get().subjectIsSubset() == !oi)) {
                 risk.get().escalate();
                 risk.get().setSeverity(si && oi ? Severity.WARNING : Severity.INFO);
@@ -143,18 +145,18 @@ public interface Evaluator {
     }
 
     static void evaluateRedirect(
-            KeySemantic subjectSemantic,
-            KeySemantic opponentSemantic,
-            PairConflictCollector collector
+            ContextSemantic subjectSemantic,
+            ContextSemantic opponentSemantic,
+            ConflictCollector.Context collector
     ) {
         ConflictInfo info = RedirectMode.MATRIX.get(subjectSemantic.redirectMode(), opponentSemantic.redirectMode());
         info.attachTo(collector);
     }
 
     static void evaluateResource(
-            KeySemantic subjectSemantic,
-            KeySemantic opponentSemantic,
-            PairConflictCollector collector
+            ContextSemantic subjectSemantic,
+            ContextSemantic opponentSemantic,
+            ConflictCollector.Context collector
     ) {
         Resource sRes = subjectSemantic.resource();
         Resource oRes = opponentSemantic.resource();
@@ -165,7 +167,7 @@ public interface Evaluator {
 
         boolean subjectReadOnly = subjectSemantic.readOnly();
         boolean opponentReadOnly = opponentSemantic.readOnly();
-        boolean interceptive = collector.getRisk(DynamicRisk.Interceptive.class).isPresent();
+        boolean interceptive = collector.getRiskOf(DynamicRisk.Interceptive.class).isPresent();
         if (sRes == oRes) {
             evaluateSameResource(subjectReadOnly, opponentReadOnly, interceptive, sRes, collector);
             return;
@@ -190,7 +192,7 @@ public interface Evaluator {
             boolean opponentReadOnly,
             boolean interceptive,
             Resource resource,
-            PairConflictCollector collector
+            ConflictCollector.Context collector
     ) {
         if (subjectReadOnly && opponentReadOnly) {
             collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
@@ -219,7 +221,7 @@ public interface Evaluator {
             boolean interceptive,
             Resource ancestor,
             Resource descendent,
-            PairConflictCollector collector
+            ConflictCollector.Context collector
     ) {
         if (subjectReadOnly && opponentReadOnly) {
             collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
@@ -257,14 +259,14 @@ public interface Evaluator {
     }
 
     static void evaluateIntent(
-            KeySemantic subjectSemantic,
-            KeySemantic opponentSemantic,
-            PairConflictCollector collector
+            ContextSemantic subjectSemantic,
+            ContextSemantic opponentSemantic,
+            ConflictCollector.Context collector
     ) {
         IntentList sI = subjectSemantic.intents();
         IntentList oI = opponentSemantic.intents();
         if (IntentList.hasShared(sI, oI)) {
-            Optional<DynamicRisk.Interceptive> risk = collector.getRisk(DynamicRisk.Interceptive.class);
+            Optional<DynamicRisk.Interceptive> risk = collector.getRiskOf(DynamicRisk.Interceptive.class);
             if (risk.isPresent()) {
                 risk.get().downgrade();
                 return;
@@ -275,11 +277,11 @@ public interface Evaluator {
     }
 
     static void evaluateModality(
-            KeySemantic subjectSemantic,
-            KeySemantic opponentSemantic,
-            PairConflictCollector collector
+            ContextSemantic subjectSemantic,
+            ContextSemantic opponentSemantic,
+            ConflictCollector.Context collector
     ) {
-        Optional<DynamicRisk.ModalJudged> risk = collector.getRisk(DynamicRisk.ModalJudged.class);
+        Optional<DynamicRisk.ModalJudged> risk = collector.getRiskOf(DynamicRisk.ModalJudged.class);
         risk.ifPresent(modalJudged -> modalJudged.acceptModality(subjectSemantic.modality(), opponentSemantic.modality()));
         collector.withRisk(Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality()));
     }

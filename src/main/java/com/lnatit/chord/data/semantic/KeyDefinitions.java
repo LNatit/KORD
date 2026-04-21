@@ -2,8 +2,9 @@ package com.lnatit.chord.data.semantic;
 
 import com.lnatit.chord.Chord;
 import com.lnatit.chord.data.Requirement;
-import com.lnatit.chord.eval.KeySemantic;
+import com.lnatit.chord.semantic.ContextSemantic;
 import com.lnatit.chord.eval.context.IKeyContext;
+import com.lnatit.chord.semantic.KeySemantic;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 
 import java.util.List;
@@ -51,12 +52,16 @@ public record KeyDefinitions(int version, Requirement requirement, List<KeyDefin
             semantics().removeIf(s -> s.isInvalid(modVersion));
             return semantics().isEmpty();
         }
+
+        public KeySemantic toSemantic() {
+
+        }
     }
 
     /**
      * Semantic payload for a key under one-or-more contexts with optional version gating.
      */
-    public record SemanticEntry(List<IKeyContext> contexts, Optional<String> modVersionRange, KeySemantic semantic)
+    public record SemanticEntry(List<IKeyContext> contexts, Optional<String> modVersionRange, ContextSemantic semantic)
     {
         public boolean isInvalid(ArtifactVersion modVersion) {
             return !Requirement.matches(modVersionRange(), modVersion);

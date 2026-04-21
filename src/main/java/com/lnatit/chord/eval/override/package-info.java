@@ -1,3 +1,6 @@
+/**
+ * Since we are refactoring result package, override disabled for now
+ */
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 @FieldsAreNonnullByDefault
