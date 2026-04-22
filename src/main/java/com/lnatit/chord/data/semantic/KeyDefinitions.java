@@ -4,7 +4,7 @@ import com.lnatit.chord.Chord;
 import com.lnatit.chord.data.Requirement;
 import com.lnatit.chord.semantic.ContextSemantic;
 import com.lnatit.chord.eval.context.IKeyContext;
-import com.lnatit.chord.semantic.KeySemantic;
+import com.lnatit.chord.semantic.legacy.KeySemantic;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 
 import java.util.List;

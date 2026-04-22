@@ -1,10 +1,11 @@
-package com.lnatit.chord.semantic;
+package com.lnatit.chord.semantic.legacy;
 
 import net.minecraft.client.KeyMapping;
+import net.neoforged.neoforge.client.extensions.IKeyMappingExtension;
 
 import javax.annotation.Nullable;
 
-public interface SemanticalKey
+public interface SemanticalKey extends IKeyMappingExtension
 {
     KeySemantic chord$getSemantic();
 

@@ -1,6 +1,6 @@
 package com.lnatit.chord.result;
 
-import com.lnatit.chord.semantic.KeyContext;
+import com.lnatit.chord.semantic.legacy.KeyContext;
 import net.minecraft.client.KeyMapping;
 
 import java.util.List;

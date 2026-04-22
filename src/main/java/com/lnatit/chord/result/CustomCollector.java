@@ -1,6 +1,6 @@
 package com.lnatit.chord.result;
 
-import com.lnatit.chord.semantic.KeyContext;
+import com.lnatit.chord.semantic.legacy.KeyContext;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

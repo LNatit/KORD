@@ -8,7 +8,7 @@ import com.lnatit.chord.result.*;
 import com.lnatit.chord.result.legacy.*;
 import com.lnatit.chord.result.legacy.ConflictResult;
 import com.lnatit.chord.semantic.ContextSemantic;
-import com.lnatit.chord.semantic.SemanticalKey;
+import com.lnatit.chord.semantic.legacy.SemanticalKey;
 import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
