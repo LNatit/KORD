@@ -1,24 +1,52 @@
 package com.lnatit.chord.result;
 
-import com.lnatit.chord.util.Supplier;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
-public sealed interface ConflictRisk extends Severity.Supplier permits ConflictRisk.Static, DynamicRisk
+public interface ConflictRisk
 {
-    ConflictTag tag();
+    Severity severity();
 
-    static ConflictRisk create(ConflictTag tag, Severity severity) {
-        return of(tag, severity);
+    default boolean isDiagnostic() {
+        return this.severity() == Severity.SAFE;
     }
 
-    static Static of(ConflictTag tag, Severity severity) {
-        return new Static(tag, severity);
-    }
-
-    record Static(ConflictTag tag, Severity severity) implements ConflictRisk, Supplier<ConflictRisk>
+    record Mapped<K, V extends ConflictRisk>(K key, V value) implements ConflictRisk
     {
         @Override
-        public ConflictRisk get() {
-            return this;
+        public Severity severity() {
+            return this.value.severity();
         }
+
+        public static <K, V extends ConflictRisk> List<Mapped<K, V>> of(Map<K, V> map) {
+            return map.entrySet().stream().map(e -> new Mapped<>(e.getKey(), e.getValue())).toList();
+        }
+    }
+
+    record Packed(List<ConflictRisk> entries, Severity severity) implements ConflictRisk
+    {
+        public Packed(List<ConflictRisk> entries) {
+            this(entries, resolveSeverity(entries));
+        }
+
+        @Override
+        public Severity severity() {
+            return this.severity;
+        }
+    }
+
+    static Severity resolveSeverity(Collection<? extends ConflictRisk> risks) {
+        Severity severity = Severity.SAFE;
+        for (ConflictRisk risk : risks) {
+            Severity s = risk.severity();
+            if (s == Severity.SEVERE) {
+                return s;
+            }
+            else if (s.ordinal() > severity.ordinal()) {
+                severity = s;
+            }
+        }
+        return severity;
     }
 }

@@ -1,4 +1,7 @@
-package com.lnatit.chord.result;
+package com.lnatit.chord.result.legacy;
+
+import com.lnatit.chord.result.ConflictTag;
+import com.lnatit.chord.result.Severity;
 
 import java.util.*;
 

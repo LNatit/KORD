@@ -1,6 +1,8 @@
-package com.lnatit.chord.result;
+package com.lnatit.chord.result.legacy;
 
 import com.lnatit.chord.eval.Modality;
+import com.lnatit.chord.result.ConflictTag;
+import com.lnatit.chord.result.Severity;
 
 // maybe we should split dynamic with informational?
 // Do we have pure informational?

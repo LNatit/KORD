@@ -1,196 +1,204 @@
-# Context 语义模式重构设计（PRECISE / ASIS）
+# Context 系统重构设计（Result 优先阶段）
 
-## 1. 背景与问题
-
-当前 `Evaluator` 在上下文阶段采用“笛卡尔积 + `conflicts()` 双向判断”：
-
-- 外层遍历 `subject` 的所有语义 context
-- 内层遍历 `opponent` 的所有语义 context
-- 逐对调用 `isContextOverlapping(a, b)`
-
-在中大型整合包里，这会产生大量“注定不重叠”的 Pair 计算。根据对公开模组的观察：
-
-- 大多数 `IKeyConflictContext#conflicts` 复写属于
-  - 一致性判断：`other == this`
-  - 或“恒不冲突”：`false`
-- 少部分是归并性判断（例如 `other == this || other == IN_GAME`），其行为在本系统语义上可视为 `IN_GAME` 类别
-- 只有极少数模组实现复杂自定义冲突逻辑
-
-结论：继续把上下文关系完全交给运行时 `conflicts()` 探测，收益低、开销敏感且不可控。
+> 本文更新为“设计参考版”：当前迭代先落地 `result` 包重构，`Context` 改造仅定义规则与接口边界。
 
 ---
 
-## 2. 设计目标
+## 1. 本轮范围与前提
 
-1. **性能优先**：减少无效 Pair 枚举，降低 `Evaluator.conflicts(...)` 热路径耗时。
-2. **语义可控**：把上下文重叠关系从“隐式行为推导”改为“可配置语义”。
-3. **兼容保底**：为少数复杂模组保留原生冲突逻辑路径。
-4. **可扩展**：支持后续通过数据包新增 context 语义类型，而非硬编码在 `KeyContext`。
+### 1.1 范围
 
-### 非目标
+- **本轮落地目标**：`result` 包重构。
+- **本轮非落地目标**：Context 路由与分桶实现细节（仅定规则，后续实现）。
 
-- 不追求完全自动推断所有第三方 `IKeyConflictContext` 语义
-- 不尝试在首版覆盖所有复杂自定义 context 逻辑
+### 1.2 关键前提
 
----
-
-## 3. 核心方案
-
-将现有 `KeyContext` 语义拆为两种指定模式：
-
-## 3.1 PRECISE 模式（推荐默认）
-
-PRECISE 表示“显式语义声明”，不依赖 `conflicts()` 行为推断。
-
-- 内建基础语义：`UNIVERSAL` / `IN_GAME` / `IN_GUI`
-- 支持通过数据包注册新语义类别（如“只与自身冲突”“与 IN_GAME 归并”“永不冲突”）
-- 在按键语义配置中**禁止或不推荐使用 `UNIVERSAL`**（降低跨域冲突面）
-
-PRECISE 的重叠关系由配置或内建规则直接决定，不走 `IKeyConflictContext#conflicts`。
-
-## 3.2 ASIS 模式（兼容兜底）
-
-ASIS 表示“保留原始上下文行为”。
-
-- 使用原始 `IKeyConflictContext` 对象
-- 重叠判定沿用当前逻辑：
-  - `a.conflicts(b) || b.conflicts(a)`
-
-ASIS 用于少数实现复杂逻辑的模组或无法建模的场景。
+- `Evaluator` 主流水线结构保持不变。
+- Context 层必须保留，因为其承担外部 `IKeyConflictContext` 适配逻辑。
+- Result 层只表达“已路由后的结论”，不承担复杂 Context 推理。
 
 ---
 
-## 4. 数据模型建议
+## 2. IKeyConflictContext 三分类模型
 
-建议在 `eval.context` 引入包装对象（可与现有 TODO 对齐）：
+> 该分类用于路由决策，不是对 NeoForge API 的替换。
 
-```java
-interface ContextDescriptor extends Comparable<ContextDescriptor> {
-    String id();              // 稳定标识（序列化/比较）
-    String translationKey();  // 文本展示
-    Mode mode();              // PRECISE / ASIS
-}
-```
+## 2.1 第一类：自限性 Context（Self-Limited）
 
-其中：
+定义：冲突条件为真仅当对象为自身（扩展自限类型可并入同类处理）。
 
-- PRECISE 描述符额外包含“语义类别”与“重叠策略”
-- ASIS 描述符携带原始 `IKeyConflictContext` 引用（或可解析句柄）
+特征：
 
-### 重叠策略建议（PRECISE）
+- 仅这一类支持按键语义指定。
+- 支持一个按键绑定多个 Context。
+- 支持 Per-Context 语义。
 
-可先提供有限策略，避免过度通用化：
+处理：
 
-- `SELF_ONLY`：仅与同类别冲突
-- `NEVER`：不冲突
-- `UNIVERSAL`：与全部冲突
+- 进入语义流水线（State/Intercept/Redirect/Resource/Intent/Modality）。
+- 原有细粒度语义判断能力保留在此类内部。
 
-这能覆盖你调研中的主流实现模式。
+## 2.2 第二类：全局或复杂条件 Context（Global/Complex）
 
----
+定义：冲突条件依赖复杂运行逻辑，无法稳定映射到自限语义。
 
-## 5. Evaluator 改造点
+特征：
 
-现有逻辑入口：`Evaluator.isContextOverlapping(...)`。
+- 无语义指定需求。
+- 现实中多数“非推荐 UNIVERSAL 写法”可归入此类。
 
-改造后建议：
+处理：
 
-1. 若两侧 descriptor 均为 PRECISE：使用策略表直接判断（O(1)）
-2. 只要任一侧为 ASIS：回退到 `conflicts()` 双向判断
+- 与第一类比较时，直接将该原始 Context 与第一类按键已指定的所有 Context 逐一比较。
+- 根据比较结果直接产出结论。
+- **不进入语义流水线**。
 
-这样可以把绝大多数主流场景走到快速路径，同时保留复杂模组兼容性。
+## 2.3 第三类：恒为假 Context（Always-False）
 
----
+定义：冲突判定恒为 `false`。
 
-## 6. Pair 设计影响
+处理：
 
-该方案与当前“有向 `ContextPair`”并不冲突：
-
-- `ContextPair` 继续作为结果层表达（记录具体语义组合）
-- 优化的是“如何筛出有效 Pair”，而不是删除 Pair
-
-即：减少无效 Pair 枚举，保留有效 Pair 的可解释性。
+- 比较时直接判定不冲突。
+- 走短路路径，避免额外计算。
 
 ---
 
-## 7. 配置与数据包草案
+## 3. 路由规则（设计约束）
 
-建议新增一类数据包目录（示意）：
+为避免行为歧义，路由优先级建议固定如下：
 
-`data/chord/context_registry/*.json`
+1. 任一侧为第三类（Always-False） -> 直接 `SAFE`，短路返回。
+2. 存在第二类（Global/Complex）与第一类（Self-Limited）组合 -> 走“逐一原始比较”路径，直出结论。
+3. 两侧均为第一类（Self-Limited） -> 进入语义流水线。
+4. 第二类与第二类比较 -> 走原始比较路径，是否输出细节由 Result 侧策略决定。
 
-示例（草案）：
+说明：
 
-```json
-{
-  "id": "in_game",
-  "translation_key": "chord.context.in_game",
-  "mode": "PRECISE",
-  "policy": "SELF_ONLY"
-}
-```
-
-归并示例：
-
-```json
-{
-  "id": "ingame_like",
-  "translation_key": "chord.context.ingame_like",
-  "mode": "PRECISE",
-  "policy": "MERGE_IN_GAME"
-}
-```
-
-ASIS 示例：
-
-```json
-{
-  "id": "raw_mod_ctx",
-  "translation_key": "chord.context.raw_mod_ctx",
-  "mode": "ASIS"
-}
-```
+- 这里的“逐一原始比较”指基于 `IKeyConflictContext#conflicts` 的直接比较，不混入语义层推导。
 
 ---
 
-## 8. 性能预期
+## 4. Context 层为何必须保留
 
-在“主流 context 实现分布”成立前提下：
+Context 层继续承担以下职责：
 
-- PRECISE 命中率高时，可显著减少 `conflicts()` 调用次数
-- 无效 Pair 筛选成本从“运行时行为判断”前移为“策略常量判断”
-- 对中大型整合包，预计在上下文阶段有可观收益
+- 外部 `IKeyConflictContext` 分类与路由。
+- 第一类语义指定的索引与展开（多 Context / Per-Context）。
+- 第二类原始比较的调度。
+- 第三类短路出口。
 
-注：最终收益仍取决于每个按键的语义条目数与 PRECISE 覆盖率。
-
----
-
-## 9. 兼容性与迁移策略
-
-建议分阶段推进：
-
-1. **阶段A**：引入 descriptor 与双模式，不改现有语义文件（默认 ASIS 兼容）
-2. **阶段B**：为内建语义和常见模式补充 PRECISE 注册
-3. **阶段C**：在内容规范中标注“禁用/不推荐 UNIVERSAL”，并逐步迁移 key semantics
-4. **阶段D**：基于 profiler 数据评估覆盖率和收益，再决定是否继续压缩 ASIS 使用范围
+Result 层仅消费 Context 层输出的“已决策事实”，避免职责污染。
 
 ---
 
-## 10. 风险与约束
+## 5. 对 Result 设计的直接影响
 
-- 错误的 PRECISE 策略映射会导致漏报/误报
-- ASIS 仍需保留，不能强行移除
-- 数据包作者需要理解策略语义，文档和校验（codec）必须同步完善
+## 5.1 Result 需要三种来源形态
+
+建议将结果来源显式化为三类：
+
+1. `SEMANTIC_PIPELINE`：第一类内部语义流水线结果（原先复杂结果模型主要迁移到这里）。
+2. `CONTEXT_DIRECT`：第二类直判结果（不走语义流水线）。
+3. `SHORT_CIRCUIT_SAFE`：第三类或其他短路安全结果。
+
+可使用统一对外结构，但必须包含来源标记（origin）。
+
+## 5.2 Hardware/Context 标签裁剪
+
+建议：
+
+- 不再默认对 Hardware/Context 阶段打调试标签。
+- 仅在 `SEMANTIC_PIPELINE` 路径保留必要标签。
+- 对 `CONTEXT_DIRECT` 和 `SHORT_CIRCUIT_SAFE` 路径以“来源 + 说明”替代标签堆叠。
+
+目标：减少冗余标签噪声，提升结果可读性。
+
+## 5.3 UserOverride 简化方向
+
+建议把 UserOverride 收敛为：
+
+- 用户提供说明文本（reason/comment）
+- 用户声明期望结果级别（至少包含目标结论）
+
+不再要求用户按“每层每标签”精确覆盖。
+
+注意：
+
+- 即使简化，也应保留最小机器可读字段（目标键对、目标结论、说明文本），避免完全不可审计。
 
 ---
 
-## 11. 结论
+## 6. 方案评估
 
-该方案**可行且适合当前项目阶段**：
+## 6.1 优点
 
-- 在不牺牲兼容性的前提下，把主流场景从动态推断迁移到显式语义
-- 与现有 Evaluator 主体逻辑兼容，改造边界清晰
-- 对“eval 时间敏感”的整合包场景有现实价值
+- 语义边界更清晰：可语义化与不可语义化场景分离。
+- 性能更可控：第二/三类走直判或短路，减少无效流水线执行。
+- 重构顺序合理：先稳定 Result 模型，再落地 Context 改造。
+- 结果可解释性更好：可直接回答“该结论来自哪条路径”。
 
-建议按“ASIS 保底 + PRECISE 增量覆盖”的路径落地。
+## 6.2 风险
 
+- 三来源结果增加消费端分支复杂度（UI/日志/导出）。
+- 第二类直判若无足够来源信息，后续排错会困难。
+- 第一类多 Context + Per-Context 组合可能膨胀，需要后续限流策略。
+- UserOverride 过度简化可能无法覆盖高级玩家诉求。
+
+## 6.3 必要修正
+
+建议在 Result 最小模型中加入：
+
+- `origin`（来源）
+- `explanation`（可读说明）
+- `severity`（最终级别）
+
+可选：
+
+- `evidence`（原始比较证据摘要）
+
+---
+
+## 7. 可立即采纳 / 需验证项
+
+## 7.1 可立即采纳
+
+- 三分类模型（Self-Limited / Global-Complex / Always-False）。
+- Context 层保留并承担路由逻辑。
+- Result 来源三形态化。
+- Hardware/Context 冗余标签裁剪方向。
+- UserOverride 文本化简化方向（保留最小机器可读字段）。
+
+## 7.2 需实验验证
+
+- 第二类“直判不进流水线”在真实模组组合下的准确率。
+- 标签裁剪后问题定位效率是否下降。
+- 三来源结果对消费端代码复杂度影响。
+
+## 7.3 最小验证清单
+
+1. 构建三分类样例集（纯第一类、第一/第二混合、第三类短路）。
+2. 对比新旧结论一致性（冲突与严重度）。
+3. 记录 `conflicts()` 调用次数变化。
+4. 验证结果展示可区分三来源且无歧义。
+5. 验证 UserOverride 文本方案是否满足基本可解释需求。
+
+---
+
+## 8. 与 result 包重构的协同落地顺序
+
+1. 先定义新的 `ConflictResult` 最小协议（origin/severity/explanation）。
+2. 再定义三来源结果装配器（semantic/direct/short-circuit）。
+3. Context 改造落地时，仅对装配输入做替换，不改 Result 对外契约。
+
+这样可以把 Context 改造风险与 Result 重构风险解耦。
+
+---
+
+## 9. 当前结论
+
+该方案总体可行，且适合当前“Result 优先”阶段：
+
+- Context 分类与路由规则已足够清晰，可作为后续实现输入。
+- Result 层可先完成来源建模与结构瘦身，再逐步接入 Context 新路径。
+- 相比继续在单一标签体系内堆规则，三来源模型更稳定、更易维护。

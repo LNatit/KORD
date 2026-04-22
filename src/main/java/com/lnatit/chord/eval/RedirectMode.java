@@ -1,6 +1,10 @@
 package com.lnatit.chord.eval;
 
 import com.lnatit.chord.result.*;
+import com.lnatit.chord.result.legacy.ConflictInfo;
+import com.lnatit.chord.result.legacy.ConflictRisk;
+import com.lnatit.chord.result.ConflictTag;
+import com.lnatit.chord.result.legacy.DynamicRisk;
 import com.lnatit.chord.util.AsymmetricEnumMatrix;
 
 public enum RedirectMode

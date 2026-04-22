@@ -1,56 +1,48 @@
 package com.lnatit.chord.result;
 
-import org.jetbrains.annotations.ApiStatus;
+import com.lnatit.chord.semantic.KeyContext;
+import net.minecraft.client.KeyMapping;
 
 import java.util.List;
+import java.util.Map;
 
-// TODO split meta and context, calculate severity on each Context
-public record ConflictResult(Severity severity, List<ConflictRisk> metaRisks, List<ContextRisk> contextRisks)
+// Display Interface
+public interface ConflictResult extends ConflictRisk
 {
-    public static final ConflictResult SAFE = new ConflictResult(Severity.SAFE, List.of(), List.of());
-
-    @Deprecated
-    @ApiStatus.Internal
-    @SuppressWarnings("all")
-    public ConflictResult {
-        metaRisks = List.copyOf(metaRisks);
-        contextRisks = List.copyOf(contextRisks);
+    @Override
+    default boolean isDiagnostic() {
+        return false;
     }
 
-    public ConflictResult(List<ConflictRisk> metaRisks, List<ContextRisk> contextRisks) {
-        this(resolveSeverity(metaRisks, contextRisks), metaRisks, contextRisks);
+    record Pipeline(List<Mapped<KeyContext, Packed>> byContextRisks, Severity severity) implements ConflictResult {
+        public Pipeline(Map<KeyContext, Packed> byContextRisks) {
+            this(Mapped.of(byContextRisks), ConflictRisk.resolveSeverity(byContextRisks.values()));
+        }
     }
 
-    public record ContextRisk(ContextPair pair,
-                              Severity severity,
-                              List<ConflictRisk> risks) implements Severity.Supplier
+    record Custom(List<Mapped<KeyContext.CustomPair, ConflictRisk>> byPairRisks, Severity severity) implements ConflictResult {
+        public static final Custom EMPTY = new Custom(List.of(), Severity.SAFE);
+
+        public Custom(Map<KeyContext.CustomPair, ConflictRisk> byPairRisks) {
+            this(Mapped.of(byPairRisks), ConflictRisk.resolveSeverity(byPairRisks.values()));
+        }
+    }
+
+    // TODO use a wrapped KeyPair for Map key
+    record Impl(KeyMapping left, KeyMapping right, ConflictResult result) implements ConflictResult
     {
-        @Deprecated
-        @ApiStatus.Internal
-        @SuppressWarnings("all")
-        public ContextRisk {
-            risks = List.copyOf(risks);
-        }
-
-        public ContextRisk(ContextPair pair, List<ConflictRisk> risks) {
-            this(pair, resolveSeverity(risks), risks);
-        }
-    }
-
-    @SafeVarargs
-    private static Severity resolveSeverity(List<? extends Severity.Supplier>... lists) {
-        Severity severity = Severity.SAFE;
-        for (List<? extends Severity.Supplier> list : lists) {
-            for (Severity.Supplier supplier : list) {
-                Severity s = supplier.severity();
-                if (s == Severity.SEVERE) {
-                    return s;
-                }
-                else if (s.ordinal() > severity.ordinal()) {
-                    severity = s;
-                }
+        public Impl {
+            if (left.compareTo(right) > 0) {
+                // swap to ensure left <= right
+                KeyMapping temp = left;
+                left = right;
+                right = temp;
             }
         }
-        return severity;
+
+        @Override
+        public Severity severity() {
+            return this.result.severity();
+        }
     }
 }

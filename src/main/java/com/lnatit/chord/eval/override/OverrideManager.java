@@ -1,16 +1,16 @@
 package com.lnatit.chord.eval.override;
 
-import com.lnatit.chord.result.ConflictRisk;
-import com.lnatit.chord.result.ConflictResult;
+import com.lnatit.chord.result.legacy.ConflictRisk;
+import com.lnatit.chord.result.legacy.ConflictResult;
 import com.lnatit.chord.result.Severity;
 import net.minecraft.client.KeyMapping;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 public interface OverrideManager
 {
@@ -39,17 +39,19 @@ public interface OverrideManager
         OVERRIDES.get(type).put(pair, result);
     }
 
-    static Optional<ConflictResult> getOverride(Pair pair) {
+    @Nullable
+    static ConflictResult getOverride(Pair pair) {
         for (OverrideType type : PRIORITY) {
             ConflictResult result = OVERRIDES.get(type).get(pair);
             if (result != null) {
-                return Optional.of(withSourceTag(result, type));
+                return withSourceTag(result, type);
             }
         }
-        return Optional.empty();
+        return null;
     }
 
-    static Optional<ConflictResult> getOverride(KeyMapping key1, KeyMapping key2) {
+    @Nullable
+    static ConflictResult getOverride(KeyMapping key1, KeyMapping key2) {
         return getOverride(Pair.of(key1, key2));
     }
 

@@ -5,6 +5,8 @@ import com.lnatit.chord.eval.mutex.StateSet;
 import com.lnatit.chord.eval.override.OverrideManager;
 import com.lnatit.chord.eval.resource.Resource;
 import com.lnatit.chord.result.*;
+import com.lnatit.chord.result.legacy.*;
+import com.lnatit.chord.result.legacy.ConflictResult;
 import com.lnatit.chord.semantic.ContextSemantic;
 import com.lnatit.chord.semantic.SemanticalKey;
 import net.minecraft.client.KeyMapping;
@@ -28,10 +30,16 @@ public interface Evaluator {
         }
 
         // User override
-        Optional<ConflictResult> override = OverrideManager.getOverride(subject, opponent);
-        if (override.isPresent()) {
-            return override.get();
+        ConflictResult override = OverrideManager.getOverride(subject, opponent);
+        if (override != null) {
+            return override;
         }
+
+
+
+
+
+
 
 
 

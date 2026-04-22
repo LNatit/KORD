@@ -1,4 +1,4 @@
-package com.lnatit.chord.result;
+package com.lnatit.chord.result.legacy;
 
 import com.lnatit.chord.util.Provider;
 import com.lnatit.chord.util.Supplier;

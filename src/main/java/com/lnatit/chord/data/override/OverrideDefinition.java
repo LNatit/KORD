@@ -2,7 +2,7 @@ package com.lnatit.chord.data.override;
 
 import com.lnatit.chord.data.Requirement;
 import com.lnatit.chord.eval.override.OverrideManager;
-import com.lnatit.chord.result.ConflictResult;
+import com.lnatit.chord.result.legacy.ConflictResult;
 
 import java.util.Optional;
 

@@ -1,4 +1,4 @@
-package com.lnatit.chord.result;
+package com.lnatit.chord.result.legacy;
 
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
