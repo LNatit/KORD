@@ -1,6 +1,6 @@
 package com.lnatit.chord.result;
 
-import com.lnatit.chord.semantic.legacy.KeyContext;
+import com.lnatit.chord.semantic.KeyContext;
 import net.minecraft.client.KeyMapping;
 
 import java.util.List;
@@ -20,10 +20,10 @@ public interface ConflictResult extends ConflictRisk
         }
     }
 
-    record Custom(List<Mapped<KeyContext.CustomPair, ConflictRisk>> byPairRisks, Severity severity) implements ConflictResult {
+    record Custom(List<Mapped<KeyContext.Pair, RiskEntry>> byPairRisks, Severity severity) implements ConflictResult {
         public static final Custom EMPTY = new Custom(List.of(), Severity.SAFE);
 
-        public Custom(Map<KeyContext.CustomPair, ConflictRisk> byPairRisks) {
+        public Custom(Map<KeyContext.Pair, RiskEntry> byPairRisks) {
             this(Mapped.of(byPairRisks), ConflictRisk.resolveSeverity(byPairRisks.values()));
         }
     }

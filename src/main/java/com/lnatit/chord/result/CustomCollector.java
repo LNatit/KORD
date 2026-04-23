@@ -1,25 +1,18 @@
 package com.lnatit.chord.result;
 
-import com.lnatit.chord.semantic.legacy.KeyContext;
+import com.lnatit.chord.semantic.KeyContext;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class CustomCollector
-{
-    private final Map<KeyContext.CustomPair, ConflictRisk> byPairRisks = new LinkedHashMap<>();
+public class CustomCollector {
+    private final Map<KeyContext.Pair, RiskEntry> byPairRisks = new LinkedHashMap<>();
 
-    public void add(KeyContext.CustomPair pair, ConflictRisk risk)
-    {
+    public void add(KeyContext.Pair pair, RiskEntry risk) {
         this.byPairRisks.put(pair, risk);
     }
 
     public ConflictResult.Custom collect() {
-        if (byPairRisks.isEmpty())
-        {
-            return ConflictResult.Custom.EMPTY;
-        }
-        // is copy really needed since no further modification?
-        return new ConflictResult.Custom(this.byPairRisks);
+        return byPairRisks.isEmpty() ? ConflictResult.Custom.EMPTY : new ConflictResult.Custom(this.byPairRisks);
     }
 }

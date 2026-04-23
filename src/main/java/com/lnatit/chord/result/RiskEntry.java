@@ -1,13 +1,12 @@
-package com.lnatit.chord.result.context;
+package com.lnatit.chord.result;
 
-import com.lnatit.chord.result.ConflictRisk;
-import com.lnatit.chord.result.Severity;
+import com.lnatit.chord.result.context.RiskTag;
 
-public interface TaggedRisk extends ConflictRisk
+public interface RiskEntry extends ConflictRisk
 {
     RiskTag tag();
 
-    record Diagnostic(RiskTag tag) implements TaggedRisk
+    record Diagnostic(RiskTag tag) implements RiskEntry
     {
         @Override
         public Severity severity() {
@@ -15,7 +14,7 @@ public interface TaggedRisk extends ConflictRisk
         }
     }
 
-    class Simple<T extends RiskTag> implements TaggedRisk
+    class Simple<T extends RiskTag> implements RiskEntry
     {
         private final T tag;
 
