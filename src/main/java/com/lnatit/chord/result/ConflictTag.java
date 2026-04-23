@@ -1,6 +1,8 @@
 package com.lnatit.chord.result;
 
-public record ConflictTag(String shortCode, boolean isDiagnostic)
+import com.lnatit.chord.result.context.RiskTag;
+
+public record ConflictTag(String shortCode, boolean isDiagnostic) implements RiskTag
 {
     // K physical key
     public static final ConflictTag HARDWARE_MISMATCH = ConflictTag.debug("k_hm");

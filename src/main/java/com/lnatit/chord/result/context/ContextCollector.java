@@ -8,7 +8,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ContextCollector implements Collector<ConflictRisk.Packed> {
+public class ContextCollector implements Collector<ConflictRisk.Packed>
+{
     private final StateTag state;
     @Nullable
     private RiskEntry.Simple<InterceptTag> intercept;
@@ -78,9 +79,8 @@ public class ContextCollector implements Collector<ConflictRisk.Packed> {
         List<ConflictRisk> risks = new ArrayList<>();
         risks.add(state.toRisk());
         for (ConflictRisk field : new ConflictRisk[]{intercept, redirect, resource, intent, modality}) {
-            if (field != null) {
-                risks.add(field);
-            } else break;
+            if (field != null) {risks.add(field);}
+            else {break;}
         }
         return new ConflictRisk.Packed(risks);
     }

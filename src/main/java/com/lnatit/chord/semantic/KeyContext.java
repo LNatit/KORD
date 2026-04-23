@@ -30,6 +30,18 @@ public record KeyContext(String id, IKeyConflictContext context, ConflictType ty
         return ALL.get(id);
     }
 
+    /**
+     * Reverse-lookup: find a registered KeyContext whose wrapped IKeyConflictContext
+     * is the same instance as {@code ctx}.  Returns {@code null} if none is registered.
+     */
+    @Nullable
+    public static KeyContext lookup(IKeyConflictContext ctx) {
+        for (KeyContext kc : ALL.values()) {
+            if (kc.context() == ctx) return kc;
+        }
+        return null;
+    }
+
     public record Pair(KeyContext left, KeyContext right) {
         public Pair {
             if (left.type() != ConflictType.CUSTOM || right.type() != ConflictType.CUSTOM) {

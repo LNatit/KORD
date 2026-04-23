@@ -24,7 +24,7 @@ public interface RiskEntry extends ConflictRisk
 
 
         @Override
-        public RiskTag tag() {
+        public T tag() {
             return this.tag;
         }
 

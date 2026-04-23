@@ -51,7 +51,7 @@ public interface Codecs
             CONFLICT_RISK_CODEC.listOf().optionalFieldOf("risks", List.of()).forGetter(ContextPair.PairRiskEntry::risks)
     ).apply(inst, ContextPair.PairRiskEntry::new));
 
-    Codec<ConflictResult> CONFLICT_RESULT_CODEC;
+    Codec<ConflictResult> CONFLICT_RESULT_CODEC = null;
 
     Codec<Requirement> REQUIREMENT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.STRING.fieldOf("modid").forGetter(Requirement::modid),

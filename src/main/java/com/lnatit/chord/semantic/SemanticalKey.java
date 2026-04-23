@@ -10,6 +10,10 @@ public interface SemanticalKey
 
     void chord$setSemantic(KeySemantic semantic);
 
+    void chord$resetSemantic();
+
+    int chord$compareTo(KeyMapping other);
+
     @Nullable
     static KeyMapping lookup(String name) {
         return KeyMapping.ALL.get(name);

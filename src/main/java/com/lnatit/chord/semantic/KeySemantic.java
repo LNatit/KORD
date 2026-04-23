@@ -1,5 +1,7 @@
 package com.lnatit.chord.semantic;
 
+import net.neoforged.neoforge.client.settings.IKeyConflictContext;
+
 import java.util.LinkedHashMap;
 import java.util.SequencedCollection;
 
@@ -31,5 +33,17 @@ public sealed interface KeySemantic permits KeySemantic.Semantical, KeySemantic.
                         + context.type());
             }
         }
+    }
+
+    /**
+     * Fallback for KeyMappings with no datapack-defined semantic.
+     * Looks up the registered KeyContext for the given IKeyConflictContext instance;
+     * if none is found, wraps it in an anonymous CUSTOM KeyContext so it routes
+     * through CONTEXT_DIRECT without needing a separate Unknown branch.
+     */
+    static RawContext fallback(IKeyConflictContext ctx) {
+        KeyContext known = KeyContext.lookup(ctx);
+        if (known != null) return new RawContext(known);
+        return new RawContext(new KeyContext("unknown:" + ctx.getClass().getName(), ctx, ConflictType.CUSTOM));
     }
 }

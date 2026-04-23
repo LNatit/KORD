@@ -8,7 +8,7 @@ public interface ConflictRisk
 {
     Severity severity();
 
-    default boolean isDiagnostic() {
+    default boolean isHidden() {
         return this.severity() == Severity.SAFE;
     }
 

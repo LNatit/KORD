@@ -8,32 +8,32 @@ import java.util.Map;
 public interface Collector<R extends ConflictRisk> {
     R collect();
 
-    static MappedCollector<KeyContext, ConflictRisk.Packed, ConflictResult.Pipeline> pipeline() {
+    static MappedCollector<KeyContext, ConflictRisk.Packed, Finalized.Pipeline> pipeline() {
         return new MappedCollector.Pipeline();
     }
 
-    static MappedCollector<KeyContext.Pair, RiskEntry, ConflictResult.Custom> custom() {
+    static MappedCollector<KeyContext.Pair, RiskEntry, Finalized.Custom> custom() {
         return new MappedCollector.Custom();
     }
 
-    abstract class MappedCollector<K, V extends ConflictRisk, R extends ConflictResult> implements Collector<R> {
+    abstract class MappedCollector<K, V extends ConflictRisk, R extends Finalized> implements Collector<R> {
         protected final Map<K, V> risks = new LinkedHashMap<>();
 
         public void add(K context, V risk) {
             this.risks.put(context, risk);
         }
 
-        private static class Pipeline extends MappedCollector<KeyContext, ConflictRisk.Packed, ConflictResult.Pipeline> {
+        private static class Pipeline extends MappedCollector<KeyContext, ConflictRisk.Packed, Finalized.Pipeline> {
             @Override
-            public ConflictResult.Pipeline collect() {
-                return new ConflictResult.Pipeline(this.risks);
+            public Finalized.Pipeline collect() {
+                return new Finalized.Pipeline(this.risks);
             }
         }
 
-        private static class Custom extends MappedCollector<KeyContext.Pair, RiskEntry, ConflictResult.Custom> {
+        private static class Custom extends MappedCollector<KeyContext.Pair, RiskEntry, Finalized.Custom> {
             @Override
-            public ConflictResult.Custom collect() {
-                return this.risks.isEmpty() ? ConflictResult.Custom.EMPTY : new ConflictResult.Custom(this.risks);
+            public Finalized.Custom collect() {
+                return this.risks.isEmpty() ? Finalized.Custom.EMPTY : new Finalized.Custom(this.risks);
             }
         }
     }
