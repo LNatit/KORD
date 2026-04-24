@@ -12,37 +12,37 @@ public class ContextCollector implements Collector<ConflictRisk.Packed>
 {
     private final StateTag state;
     @Nullable
-    private RiskEntry.Simple<InterceptTag> intercept;
+    private RiskEntry<InterceptTag> intercept;
     @Nullable
-    private RiskEntry.Simple<RedirectTag> redirect;
+    private RiskEntry<RedirectTag> redirect;
     @Nullable
-    private RiskEntry.Simple<ResourceTag> resource;
+    private RiskEntry<ResourceTag> resource;
     @Nullable
-    private RiskEntry.Simple<IntentTag> intent;
+    private RiskEntry<IntentTag> intent;
     @Nullable
-    private RiskEntry.Simple<ModalityTag> modality;
+    private RiskEntry<ModalityTag> modality;
 
     public ContextCollector(StateTag state) {
         this.state = state;
     }
 
-    public void setIntercept(RiskEntry.Simple<InterceptTag> intercept) {
+    public void setIntercept(RiskEntry<InterceptTag> intercept) {
         this.intercept = intercept;
     }
 
-    public void setRedirect(RiskEntry.Simple<RedirectTag> redirect) {
+    public void setRedirect(RiskEntry<RedirectTag> redirect) {
         this.redirect = redirect;
     }
 
-    public void setResource(RiskEntry.Simple<ResourceTag> resource) {
+    public void setResource(RiskEntry<ResourceTag> resource) {
         this.resource = resource;
     }
 
-    public void setIntent(RiskEntry.Simple<IntentTag> intent) {
+    public void setIntent(RiskEntry<IntentTag> intent) {
         this.intent = intent;
     }
 
-    public void setModality(RiskEntry.Simple<ModalityTag> modality) {
+    public void setModality(RiskEntry<ModalityTag> modality) {
         this.modality = modality;
     }
 
@@ -51,27 +51,27 @@ public class ContextCollector implements Collector<ConflictRisk.Packed>
     }
 
     @Nullable
-    public RiskEntry.Simple<InterceptTag> intercept() {
+    public RiskEntry<InterceptTag> intercept() {
         return intercept;
     }
 
     @Nullable
-    public RiskEntry.Simple<RedirectTag> redirect() {
+    public RiskEntry<RedirectTag> redirect() {
         return redirect;
     }
 
     @Nullable
-    public RiskEntry.Simple<ResourceTag> resource() {
+    public RiskEntry<ResourceTag> resource() {
         return resource;
     }
 
     @Nullable
-    public RiskEntry.Simple<IntentTag> intent() {
+    public RiskEntry<IntentTag> intent() {
         return intent;
     }
 
     @Nullable
-    public RiskEntry.Simple<ModalityTag> modality() {
+    public RiskEntry<ModalityTag> modality() {
         return modality;
     }
 

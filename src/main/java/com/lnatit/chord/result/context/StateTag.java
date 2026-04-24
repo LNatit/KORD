@@ -8,11 +8,11 @@ public enum StateTag implements RiskTag
     STATE_INTERSECT,
     STATE_SUBSET;
 
-    public static final RiskEntry STATE_MUTEX_RISK = new RiskEntry.Diagnostic(STATE_MUTEX);
-    public static final RiskEntry STATE_INTERSECT_RISK = new RiskEntry.Diagnostic(STATE_INTERSECT);
-    public static final RiskEntry STATE_SUBSET_RISK = new RiskEntry.Diagnostic(STATE_SUBSET);
+    public static final RiskEntry<StateTag> STATE_MUTEX_RISK = RiskEntry.diagnostic(STATE_MUTEX);
+    public static final RiskEntry<StateTag> STATE_INTERSECT_RISK = RiskEntry.diagnostic(STATE_INTERSECT);
+    public static final RiskEntry<StateTag> STATE_SUBSET_RISK = RiskEntry.diagnostic(STATE_SUBSET);
 
-    public RiskEntry toRisk() {
+    public RiskEntry<StateTag> toRisk() {
         return switch (this) {
             case STATE_MUTEX -> STATE_MUTEX_RISK;
             case STATE_INTERSECT -> STATE_INTERSECT_RISK;
