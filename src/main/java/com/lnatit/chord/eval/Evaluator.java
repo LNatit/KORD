@@ -5,298 +5,287 @@ import com.lnatit.chord.eval.mutex.StateSet;
 import com.lnatit.chord.eval.override.OverrideManager;
 import com.lnatit.chord.eval.resource.Resource;
 import com.lnatit.chord.result.*;
-import com.lnatit.chord.result.legacy.*;
-import com.lnatit.chord.result.legacy.ConflictResult;
+import com.lnatit.chord.result.context.*;
 import com.lnatit.chord.semantic.ContextSemantic;
-import com.lnatit.chord.semantic.legacy.SemanticalKey;
+import com.lnatit.chord.semantic.KeyContext;
+import com.lnatit.chord.semantic.KeySemantic;
+import com.lnatit.chord.semantic.SemanticalKey;
 import net.minecraft.client.KeyMapping;
-import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
-import java.util.Map;
-import java.util.Optional;
-
-public interface Evaluator {
+public interface Evaluator
+{
     /**
      * @see KeyMapping#same(KeyMapping)
      */
     static ConflictResult conflicts(KeyMapping subject, KeyMapping opponent) {
-        ConflictCollector.Meta collector = ConflictCollector.meta();
-
-        // Physical Context
-        if (!isSameKey(subject, opponent)) {
-            // hardware_mismatch
-            collector.withDebug(ConflictTag.HARDWARE_MISMATCH);
-            return collector.toResult();
+        KeyMapping left = subject;
+        KeyMapping right = opponent;
+        if (((SemanticalKey) left).chord$compareTo(right) > 0) {
+            KeyMapping temp = left;
+            left = right;
+            right = temp;
         }
 
-        // User override
+        // Physical Context TODO
+        if (!isSameKey(left, right)) {
+            return safePipelineResult(left, right);
+        }
+
+        // User override TODO
         ConflictResult override = OverrideManager.getOverride(subject, opponent);
         if (override != null) {
             return override;
         }
 
+        KeySemantic leftSemantic = ((SemanticalKey) left).chord$getSemantic();
+        KeySemantic rightSemantic = ((SemanticalKey) right).chord$getSemantic();
 
+//        if (leftSemantic instanceof KeySemantic.Semantical leftSemantical
+//                && rightSemantic instanceof KeySemantic.Semantical rightSemantical) {
+//            Collector.MappedCollector<KeyContext, com.lnatit.chord.result.ConflictRisk.Packed, Finalized.Pipeline> collector =
+//                    Collector.pipeline();
+//
+//            for (KeyContext leftContext : leftSemantical.getContexts()) {
+//                ContextSemantic leftContextSemantic = leftSemantical.semanticMap().get(leftContext);
+//                for (KeyContext rightContext : rightSemantical.getContexts()) {
+//                    if (!isContextOverlapping(leftContext, rightContext)) {
+//                        continue;
+//                    }
+//
+//                    ContextSemantic rightContextSemantic = rightSemantical.semanticMap().get(rightContext);
+//                    collector.add(leftContext, eval(leftContextSemantic, rightContextSemantic).collect());
+//                }
+//            }
+//
+//            return new ConflictResult(left, right, ConflictResult.Origin.PIPELINE_EVALUATE, collector.collect());
+//        }
 
-
-
-
-
-
-
-
-
-
-
-        for (Map.Entry<IKeyConflictContext, ContextSemantic> sEntry : ((SemanticalKey) subject).chord$getSemanticEntries()) {
-            for (Map.Entry<IKeyConflictContext, ContextSemantic> oEntry : ((SemanticalKey) opponent).chord$getSemanticEntries()) {
-                // Context routing
-                if (!isContextOverlapping(sEntry.getKey(), oEntry.getKey())) {
-                    // context_routed
-                    collector.withDebug(ConflictTag.CONTEXT_ROUTED);
-                    continue;
-                }
-
-                collector.merge(
-                        ContextPair.of(sEntry.getKey(), oEntry.getKey()),
-                        eval(sEntry.getValue(), oEntry.getValue())
-                );
-            }
-        }
-
-        return collector.toResult();
+        // RawContext routing is kept as a safe short path in this phase.
+        return new ConflictResult(left, right, ConflictResult.Origin.CONTEXT_DIRECT, Finalized.Custom.EMPTY);
     }
 
-    static boolean isSameKey(KeyMapping subject, KeyMapping opponent) {
-        return subject.getKey().equals(opponent.getKey())
-                && subject.getDefaultKeyModifier()
-                .equals(opponent.getDefaultKeyModifier())
-                && subject.getKeyModifier().equals(opponent.getKeyModifier());
+    private static ConflictResult safePipelineResult(KeyMapping left, KeyMapping right) {
+        return new ConflictResult(left, right, ConflictResult.Origin.PIPELINE_EVALUATE, Collector.pipeline().collect());
     }
 
-    static boolean isContextOverlapping(IKeyConflictContext subjectContext, IKeyConflictContext opponentContext) {
-        return subjectContext.conflicts(opponentContext) || opponentContext.conflicts(subjectContext);
+    private static Object getOverrideCompat(KeyMapping left, KeyMapping right) {
+        return (Object) OverrideManager.getOverride(left, right);
     }
 
-    static ConflictCollector.Context eval(ContextSemantic subject, ContextSemantic opponent) {
-        ConflictCollector.Context collector = ConflictCollector.context();
+    static boolean isSameKey(KeyMapping left, KeyMapping right) {
+        return left.getKey().equals(right.getKey())
+               && left.getDefaultKeyModifier()
+                      .equals(right.getDefaultKeyModifier())
+               && left.getKeyModifier().equals(right.getKeyModifier());
+    }
 
-        // State mutex
-        evaluateStateMutex(subject, opponent, collector);
-        if (collector.finished()) {
+    static boolean isContextOverlapping(KeyContext leftContext, KeyContext rightContext) {
+        return leftContext.context().conflicts(rightContext.context()) || rightContext.context()
+                                                                                      .conflicts(leftContext.context());
+    }
+
+    static ContextCollector eval(ContextSemantic left, ContextSemantic right) {
+        ContextCollector collector = new ContextCollector();
+
+        if (evaluateStateMutex(left, right, collector)) {
             return collector;
         }
 
-        // Input interception
-        evaluateIntercept(subject, opponent, collector);
-        if (collector.finished()) {
+        if (evaluateIntercept(left, right, collector, stateEval.subsetEntry())) {
             return collector;
         }
 
-        // Redirect mode
-        evaluateRedirect(subject, opponent, collector);
-        if (collector.finished()) {
+        if (evaluateRedirect(left, right, collector)) {
             return collector;
         }
 
-        evaluateResource(subject, opponent, collector);
-
-        // Player intent (use T instead get I to avoid confusion with intercept)
-        evaluateIntent(subject, opponent, collector);
-
-        evaluateModality(subject, opponent, collector);
-
+        evaluateResource(left, right, collector);
+        evaluateIntent(left, right, collector);
+        evaluateModality(left, right, collector);
         return collector;
     }
 
-    static void evaluateStateMutex(ContextSemantic subject, ContextSemantic opponent, ConflictCollector.Context collector) {
-        StateSet subjectStates = subject.states();
-        StateSet opponentStates = opponent.states();
-        if (StateSet.isMutex(subjectStates, opponentStates)) {
-            // state_mutex
-            collector.withDebug(ConflictTag.STATE_MUTEX);
-            collector.setFinished();
-            return;
+    static boolean evaluateStateMutex(ContextSemantic left, ContextSemantic right, ContextCollector collector) {
+        StateSet leftStates = left.states();
+        StateSet rightStates = right.states();
+        if (StateSet.isMutex(leftStates, rightStates)) {
+            collector.setState(StateTag.STATE_MUTEX_RISK);
+            return true;
         }
 
-        boolean subjectIsSubset = subjectStates.isProperSubsetOf(opponentStates);
-        if (subjectIsSubset || opponentStates.isProperSubsetOf(subjectStates)) {
-            // state_subset
-            collector.withRisk(new DynamicRisk.StateSubset(subjectIsSubset));
+        boolean leftIsSubset = leftStates.isProperSubsetOf(rightStates);
+        if (leftIsSubset || rightStates.isProperSubsetOf(leftStates)) {
+            collector.setState(new StateTag.StateSubset(leftIsSubset));
+            return false;
         }
+
+        collector.setState(StateTag.STATE_INTERSECT_RISK);
+        return false;
     }
 
-    static void evaluateIntercept(
-            ContextSemantic subjectSemantic,
-            ContextSemantic opponentSemantic,
-            ConflictCollector.Context collector
-    ) {
-        // Hijack eval depends on other contexts, so we don't use matrix indexing...
-        boolean si = subjectSemantic.intercept();
-        boolean oi = opponentSemantic.intercept();
+    static boolean evaluateIntercept(ContextSemantic left, ContextSemantic right, ContextCollector collector) {
+        boolean li = left.intercept();
+        boolean ri = right.intercept();
 
-        if (si || oi) {
-            Optional<DynamicRisk.StateSubset> risk = collector.getRiskOf(DynamicRisk.StateSubset.class);
-            if (risk.isPresent() && (risk.get().subjectIsSubset() == si || risk.get().subjectIsSubset() == !oi)) {
-                risk.get().escalate();
-                risk.get().setSeverity(si && oi ? Severity.WARNING : Severity.INFO);
-                collector.setFinished();
-                return;
+        if (li || ri) {
+            RiskEntry<StateTag> stateRisk = collector.state();
+            if (stateRisk instanceof StateTag.StateSubset(boolean leftIsSubset) && (leftIsSubset == li || leftIsSubset == !ri)) {
+                RiskEntry.Simple<InterceptTag> partialOverride = new RiskEntry.Simple<>(InterceptTag.PARTIAL_OVERRIDE);
+                partialOverride.setSeverity(li && ri ? Severity.WARNING : Severity.INFO);
+                collector.setIntercept(partialOverride);
+                return true;
             }
 
-            if (si && oi) {
-                // race_condition
-                collector.withRisk(new DynamicRisk.RaceCondition());
-                return;
+            if (li && ri) {
+                RiskEntry.Simple<InterceptTag> raceCondition = new RiskEntry.Simple<>(InterceptTag.RACE_CONDITION);
+                raceCondition.setSeverity(Severity.SEVERE);
+                collector.setIntercept(raceCondition);
+                return false;
             }
 
-            // intercept_input
-            collector.withRisk(new DynamicRisk.InterceptInput(si));
-            return;
+            RiskEntry.Simple<InterceptTag> interceptInput = new RiskEntry.Simple<>(InterceptTag.INTERCEPT_INPUT);
+            interceptInput.setSeverity(Severity.WARNING);
+            collector.setIntercept(interceptInput);
+            return false;
         }
 
-        // concurrent_input
-        collector.withDebug(ConflictTag.CONCURRENT_INPUT);
+        collector.setIntercept(RiskEntry.diagnostic(InterceptTag.CONCURRENT_INPUT));
+        return false;
     }
 
-    static void evaluateRedirect(
-            ContextSemantic subjectSemantic,
-            ContextSemantic opponentSemantic,
-            ConflictCollector.Context collector
-    ) {
-        ConflictInfo info = RedirectMode.MATRIX.get(subjectSemantic.redirectMode(), opponentSemantic.redirectMode());
-        info.attachTo(collector);
+    static boolean evaluateRedirect(ContextSemantic left, ContextSemantic right, ContextCollector collector) {
+        RedirectMode.Info info = RedirectMode.MATRIX.get(left.redirectMode(), right.redirectMode());
+        return info.attachTo(collector);
     }
 
-    static void evaluateResource(
-            ContextSemantic subjectSemantic,
-            ContextSemantic opponentSemantic,
-            ConflictCollector.Context collector
-    ) {
-        Resource sRes = subjectSemantic.resource();
-        Resource oRes = opponentSemantic.resource();
-        if (sRes == Resource.ROOT || oRes == Resource.ROOT) {
-            collector.withDebug(ConflictTag.RESOURCE_MUTEX);
+    static void evaluateResource(ContextSemantic left, ContextSemantic right, ContextCollector collector) {
+        Resource leftResource = left.resource();
+        Resource rightResource = right.resource();
+        if (leftResource == Resource.ROOT || rightResource == Resource.ROOT) {
+            collector.setResource(RiskEntry.diagnostic(ResourceTag.RESOURCE_MUTEX));
             return;
         }
 
-        boolean subjectReadOnly = subjectSemantic.readOnly();
-        boolean opponentReadOnly = opponentSemantic.readOnly();
-        boolean interceptive = collector.getRiskOf(DynamicRisk.Interceptive.class).isPresent();
-        if (sRes == oRes) {
-            evaluateSameResource(subjectReadOnly, opponentReadOnly, interceptive, sRes, collector);
+        boolean leftReadOnly = left.readOnly();
+        boolean rightReadOnly = right.readOnly();
+        RiskEntry<InterceptTag> intercept = collector.intercept();
+        boolean interceptive = intercept != null && intercept.tag() != InterceptTag.CONCURRENT_INPUT;
+        if (leftResource == rightResource) {
+            evaluateSameResource(leftReadOnly, rightReadOnly, interceptive, leftResource, collector);
             return;
         }
 
-        Resource lca = Resource.getLCA(sRes, oRes);
-        if (lca == Resource.ROOT || (lca != sRes && lca != oRes)) {
-            // Siblings or disjoint.
-            collector.withDebug(ConflictTag.RESOURCE_MUTEX);
+        Resource lca = Resource.getLCA(leftResource, rightResource);
+        if (lca == Resource.ROOT || (lca != leftResource && lca != rightResource)) {
+            collector.setResource(RiskEntry.diagnostic(ResourceTag.RESOURCE_MUTEX));
             return;
         }
 
-        boolean subjectIsParent = lca == sRes;
-        Resource parentResource = subjectIsParent ? sRes : oRes;
-        Resource childResource = subjectIsParent ? oRes : sRes;
-        evaluateAncestorResource(subjectReadOnly, opponentReadOnly,
-                interceptive, parentResource, childResource, collector);
+        boolean leftIsParent = lca == leftResource;
+        Resource parentResource = leftIsParent ? leftResource : rightResource;
+        Resource childResource = leftIsParent ? rightResource : leftResource;
+        evaluateAncestorResource(leftReadOnly, rightReadOnly, interceptive, parentResource, childResource, collector);
     }
 
     private static void evaluateSameResource(
-            boolean subjectReadOnly,
-            boolean opponentReadOnly,
+            boolean leftReadOnly,
+            boolean rightReadOnly,
             boolean interceptive,
             Resource resource,
-            ConflictCollector.Context collector
+            ContextCollector collector
     ) {
-        if (subjectReadOnly && opponentReadOnly) {
-            collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
+        if (leftReadOnly && rightReadOnly) {
+            collector.setResource(RiskEntry.diagnostic(ResourceTag.CONCURRENT_ACCESS));
             return;
         }
 
-        if (!subjectReadOnly && !opponentReadOnly) {
+        if (!leftReadOnly && !rightReadOnly) {
             if (resource.allowsConcurrentWrites()) {
-                collector.withDebug(ConflictTag.CONCURRENT_WRITE);
-            } else {
-                collector.withRisk(ConflictTag.CONCURRENT_MODIFICATION,
-                        interceptive ? Severity.INFO : Severity.SEVERE);
+                collector.setResource(RiskEntry.diagnostic(ResourceTag.CONCURRENT_WRITE));
+            }
+            else {
+                collector.setResource(RiskEntry.create(ResourceTag.CONCURRENT_WRITE,
+                                                       interceptive ? Severity.INFO : Severity.SEVERE));
             }
             return;
         }
 
-        collector.withRisk(ConflictTag.READ_WRITE,
-                resource.allowsConcurrentWrites() || interceptive
-                        ? Severity.INFO
-                        : Severity.WARNING);
+        collector.setResource(RiskEntry.create(ResourceTag.READ_WRITE,
+                                               resource.allowsConcurrentWrites() || interceptive
+                                               ? Severity.INFO
+                                               : Severity.WARNING));
     }
 
     private static void evaluateAncestorResource(
-            boolean subjectReadOnly,
-            boolean opponentReadOnly,
+            boolean leftReadOnly,
+            boolean rightReadOnly,
             boolean interceptive,
             Resource ancestor,
-            Resource descendent,
-            ConflictCollector.Context collector
+            Resource descendant,
+            ContextCollector collector
     ) {
-        if (subjectReadOnly && opponentReadOnly) {
-            collector.withDebug(ConflictTag.CONCURRENT_ACCESS);
+        if (leftReadOnly && rightReadOnly) {
+            collector.setResource(RiskEntry.diagnostic(ResourceTag.CONCURRENT_ACCESS));
             return;
         }
 
-        boolean descendentAllowsConcurrentWrites = descendent.allowsConcurrentWrites();
-        if (!subjectReadOnly && !opponentReadOnly) {
+        boolean descendantAllowsConcurrentWrites = descendant.allowsConcurrentWrites();
+        if (!leftReadOnly && !rightReadOnly) {
             boolean ancestorAllowsConcurrentWrites = ancestor.allowsConcurrentWrites();
-            if (ancestorAllowsConcurrentWrites && descendentAllowsConcurrentWrites) {
-                collector.withDebug(ConflictTag.CONCURRENT_WRITE);
+            if (ancestorAllowsConcurrentWrites && descendantAllowsConcurrentWrites) {
+                collector.setResource(RiskEntry.diagnostic(ResourceTag.CONCURRENT_WRITE));
                 return;
             }
 
-            collector.withRisk(ConflictTag.CONCURRENT_MODIFICATION,
-                    interceptive ? Severity.INFO :
-                            ancestorWWSeverity(ancestorAllowsConcurrentWrites,
-                                    descendentAllowsConcurrentWrites));
+            collector.setResource(RiskEntry.create(ResourceTag.CONCURRENT_WRITE,
+                                                   interceptive
+                                                   ? Severity.INFO
+                                                   : ancestorWWSeverity(ancestorAllowsConcurrentWrites,
+                                                                        descendantAllowsConcurrentWrites)));
             return;
         }
 
-        collector.withRisk(ConflictTag.READ_WRITE,
-                descendentAllowsConcurrentWrites || interceptive
-                        ? Severity.INFO : Severity.WARNING);
+        collector.setResource(RiskEntry.create(ResourceTag.READ_WRITE,
+                                               descendantAllowsConcurrentWrites || interceptive
+                                               ? Severity.INFO
+                                               : Severity.WARNING));
     }
 
     private static Severity ancestorWWSeverity(
             boolean ancestorAllowsConcurrentWrites,
-            boolean descendentAllowsConcurrentWrites
+            boolean descendantAllowsConcurrentWrites
     ) {
-        if (!ancestorAllowsConcurrentWrites && !descendentAllowsConcurrentWrites) {
+        if (!ancestorAllowsConcurrentWrites && !descendantAllowsConcurrentWrites) {
             return Severity.SEVERE;
         }
         return ancestorAllowsConcurrentWrites ? Severity.WARNING : Severity.INFO;
     }
 
-    static void evaluateIntent(
-            ContextSemantic subjectSemantic,
-            ContextSemantic opponentSemantic,
-            ConflictCollector.Context collector
-    ) {
-        IntentList sI = subjectSemantic.intents();
-        IntentList oI = opponentSemantic.intents();
-        if (IntentList.hasShared(sI, oI)) {
-            Optional<DynamicRisk.Interceptive> risk = collector.getRiskOf(DynamicRisk.Interceptive.class);
-            if (risk.isPresent()) {
-                risk.get().downgrade();
+    static void evaluateIntent(ContextSemantic left, ContextSemantic right, ContextCollector collector) {
+        IntentList leftIntent = left.intents();
+        IntentList rightIntent = right.intents();
+        if (IntentList.hasShared(leftIntent, rightIntent)) {
+            RiskEntry<InterceptTag> intercept = collector.intercept();
+            if (intercept instanceof RiskEntry.Simple<InterceptTag> mutable
+                && intercept.tag() != InterceptTag.CONCURRENT_INPUT) {
+                mutable.setSeverity(mutable.severity().downgrade());
                 return;
             }
-            // intent_shared
-            collector.withRisk(ConflictTag.INTENT_SHARE, IntentList.isIdentical(sI, oI) ? Severity.SAFE : Severity.INFO);
+            collector.setIntent(RiskEntry.create(IntentTag.INTENT_SHARE,
+                                                 IntentList.isIdentical(leftIntent, rightIntent)
+                                                 ? Severity.SAFE
+                                                 : Severity.INFO));
+            return;
         }
+
+        collector.setIntent(RiskEntry.diagnostic(IntentTag.INTENT_IRRELEVANT));
     }
 
-    static void evaluateModality(
-            ContextSemantic subjectSemantic,
-            ContextSemantic opponentSemantic,
-            ConflictCollector.Context collector
-    ) {
-        Optional<DynamicRisk.ModalJudged> risk = collector.getRiskOf(DynamicRisk.ModalJudged.class);
-        risk.ifPresent(modalJudged -> modalJudged.acceptModality(subjectSemantic.modality(), opponentSemantic.modality()));
-        collector.withRisk(Modality.MATRIX.get(subjectSemantic.modality(), opponentSemantic.modality()));
+    static void evaluateModality(ContextSemantic left, ContextSemantic right, ContextCollector collector) {
+        RiskEntry<RedirectTag> redirect = collector.redirect();
+        if (redirect instanceof RedirectTag.ModalDependent modalDependent) {
+            modalDependent.acceptModality(left.modality(), right.modality());
+        }
+        collector.setModality(Modality.MATRIX.get(left.modality(), right.modality()));
     }
 }

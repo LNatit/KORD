@@ -104,7 +104,7 @@ evaluateModality(...);
   - 其余：写 `STATE_INTERSECT`，返回 `true`
 
 - `evaluateIntercept`
-  - 若发现 `StateSubsetEntry` 且命中升级条件：升级为 `PARTIAL_OVERRIDE`，返回 `false`
+  - 若发现 `StateSubsetEntry` 且命中条件：写 `PARTIAL_OVERRIDE`，返回 `false`
   - 双拦截：`RACE_CONDITION`
   - 单拦截：`INTERCEPT_INPUT`
   - 无拦截：`CONCURRENT_INPUT`

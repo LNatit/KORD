@@ -10,7 +10,8 @@ import java.util.List;
 
 public class ContextCollector implements Collector<ConflictRisk.Packed>
 {
-    private final StateTag state;
+    @Nullable
+    private RiskEntry<StateTag> state;
     @Nullable
     private RiskEntry<InterceptTag> intercept;
     @Nullable
@@ -22,7 +23,10 @@ public class ContextCollector implements Collector<ConflictRisk.Packed>
     @Nullable
     private RiskEntry<ModalityTag> modality;
 
-    public ContextCollector(StateTag state) {
+    public ContextCollector() {
+    }
+
+    public void setState(RiskEntry<StateTag> state) {
         this.state = state;
     }
 
@@ -46,7 +50,7 @@ public class ContextCollector implements Collector<ConflictRisk.Packed>
         this.modality = modality;
     }
 
-    public StateTag state() {
+    public RiskEntry<StateTag> state() {
         return state;
     }
 
@@ -77,8 +81,7 @@ public class ContextCollector implements Collector<ConflictRisk.Packed>
 
     public ConflictRisk.Packed collect() {
         List<ConflictRisk> risks = new ArrayList<>();
-        risks.add(state.toRisk());
-        for (ConflictRisk field : new ConflictRisk[]{intercept, redirect, resource, intent, modality}) {
+        for (ConflictRisk field : new ConflictRisk[]{state, intercept, redirect, resource, intent, modality}) {
             if (field != null) {risks.add(field);}
             else {break;}
         }
