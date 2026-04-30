@@ -1,7 +1,5 @@
 package com.lnatit.chord.result;
 
-import com.lnatit.chord.result.context.RiskTag;
-
 public interface RiskEntry<T extends RiskTag> extends ConflictRisk
 {
     T tag();

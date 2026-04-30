@@ -26,7 +26,7 @@ public interface Finalized extends ConflictRisk
         }
     }
 
-    record Custom(List<Mapped<KeyContext.Pair, RiskEntry>> byPairRisks, Severity severity) implements Finalized
+    record Custom(List<Mapped<KeyContext.Pair, RiskEntry<?>>> byPairRisks, Severity severity) implements Finalized
     {
         public static final Custom EMPTY = new Custom(List.of(), Severity.SAFE);
 
@@ -35,7 +35,7 @@ public interface Finalized extends ConflictRisk
         @SuppressWarnings("all")
         public Custom {}
 
-        public Custom(Map<KeyContext.Pair, RiskEntry> byPairRisks) {
+        public Custom(Map<KeyContext.Pair, RiskEntry<?>> byPairRisks) {
             this(Mapped.of(byPairRisks), ConflictRisk.resolveSeverity(byPairRisks.values()));
         }
     }

@@ -3,10 +3,13 @@ package com.lnatit.chord.semantic;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.SequencedCollection;
 
 public sealed interface KeySemantic permits KeySemantic.Semantical, KeySemantic.RawContext
 {
+    SequencedCollection<KeyContext> getContexts();
+
     record Semantical(LinkedHashMap<KeyContext, ContextSemantic> semanticMap) implements KeySemantic
     {
         public Semantical {
@@ -19,6 +22,7 @@ public sealed interface KeySemantic permits KeySemantic.Semantical, KeySemantic.
             }
         }
 
+        @Override
         public SequencedCollection<KeyContext> getContexts() {
             return semanticMap.sequencedKeySet();
         }
@@ -32,6 +36,11 @@ public sealed interface KeySemantic permits KeySemantic.Semantical, KeySemantic.
                         "SELF_ONLY contexts are not allowed in RawContext key semantic, got: "
                         + context.type());
             }
+        }
+
+        @Override
+        public SequencedCollection<KeyContext> getContexts() {
+            return List.of(context);
         }
     }
 

@@ -1,5 +1,7 @@
 package com.lnatit.chord.result.context;
 
+import com.lnatit.chord.result.RiskTag;
+
 public enum InterceptTag implements RiskTag
 {
     RACE_CONDITION,

@@ -12,7 +12,7 @@ public interface Collector<R extends ConflictRisk> {
         return new MappedCollector.Pipeline();
     }
 
-    static MappedCollector<KeyContext.Pair, RiskEntry, Finalized.Custom> custom() {
+    static MappedCollector<KeyContext.Pair, RiskEntry<?>, Finalized.Custom> custom() {
         return new MappedCollector.Custom();
     }
 
@@ -30,7 +30,7 @@ public interface Collector<R extends ConflictRisk> {
             }
         }
 
-        private static class Custom extends MappedCollector<KeyContext.Pair, RiskEntry, Finalized.Custom> {
+        private static class Custom extends MappedCollector<KeyContext.Pair, RiskEntry<?>, Finalized.Custom> {
             @Override
             public Finalized.Custom collect() {
                 return this.risks.isEmpty() ? Finalized.Custom.EMPTY : new Finalized.Custom(this.risks);

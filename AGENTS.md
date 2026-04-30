@@ -29,9 +29,16 @@ Chord's core innovation: all key conflict analysis flows through **7 evaluation 
 
 The conflict evaluation follows **8 sequential stages** (see `doc/PIPELINE_zh-cn.md` for full detail):
 
+**Execution Flow:**
 ```
-Stage 1: Physical Key Match → Stage 2: User Overrides → Stage 3: Context Overlap
-  → Stage 4-8: Fine-grained Semantic Analysis
+Stage 1: Physical Key Match 
+  → Stage 2: User Overrides [TODO]
+  → Stage 3: Context Overlap & Semantic Routing
+  → Stage 4: State Mutex Analysis (evaluateStateMutex)
+  → Stage 5: Input Interception (evaluateIntercept)
+  → Stage 6: Redirect Mode (evaluateRedirect)
+  → Stage 7: Resource Conflict (evaluateResource) ← moved forward from Stage 8
+  → Stage 8: Intent & Modality (evaluateIntent + evaluateModality)
 ```
 
 Key design: Each stage can mark results as **finished** (preventing further evaluation), or produce **dynamic risks** that propagate to later stages and can be downgraded/escalated based on new information.
@@ -39,33 +46,46 @@ Key design: Each stage can mark results as **finished** (preventing further eval
 **Core class:** `com.lnatit.chord.eval.Evaluator.java`
 - **`Evaluator` is an `interface`** (not a class) — all methods are `static`
 - Static method: `Evaluator.conflicts(KeyMapping, KeyMapping): ConflictResult`
-- Each `evaluateXXX()` method handles one analysis dimension
-- `ConflictCollector` accumulates risks, tags, and completion state through the pipeline
+- Method `eval(ContextSemantic, ContextSemantic): ContextCollector` runs the 6-stage evaluation pipeline for a single semantic context pair
+- `ContextCollector` accumulates risks, tags, and state through the pipeline for a single context
 
 ## Critical Semantic Concepts
 
 ### KeySemantic Record
-Semantic payload is split into a key-level wrapper plus per-context record:
+Semantic payload is split into a key-level wrapper plus per-context record. **KeySemantic is a sealed interface** with two implementations:
 ```java
-public interface KeySemantic {
-    KeySemantic AS_IS = ...;
-    record Precise(Map<KeyContext, ContextSemantic> semantics) implements KeySemantic {}
+public sealed interface KeySemantic permits Semantical, RawContext {
+    // Semantical: Multi-context with detailed per-context semantics (from datapack definitions)
+    record Semantical(LinkedHashMap<KeyContext, ContextSemantic> semanticMap) implements KeySemantic {}
+    
+    // RawContext: Single context with no detailed semantic definition (fallback)
+    record RawContext(KeyContext context) implements KeySemantic {}
 }
 
 record ContextSemantic(StateSet states, boolean intercept, RedirectMode redirectMode,
                        Resource resource, boolean readOnly, IntentList intents, Modality modality)
 ```
 
-### State Mutex vs Subset
-- **Mutex**: Two StateSet instances share zero common states → automatic SAFE resolution
-- **Subset**: StateSet A ⊂ StateSet B → creates DynamicRisk.StateSubset (gets upgraded to WARNING/SEVERE if interceptive)
-- **StateSet tree structure**: `StateSet` is now backed by a boolean expression tree (`eval/mutex/tree/`) composed of `LeafNode` (a named mutex set), `AndNode`, `OrNode`, and `NotNode`. Use `TreeNode.toStateSet()` to compile. The codec in `Codecs.STATES_CODEC` parses these automatically from JSON.
+**Conflict Detection Routing:**
+- If **both** KeyMappings have `Semantical` semantics → use full 6-stage pipeline (`Evaluator.eval()`) for each overlapping context
+- If **at least one** has `RawContext` → downgrade to simple context-overlap check (no detailed semantic analysis)
+
+### State Mutex vs Subset  
+- **Mutex**: Two StateSet instances share zero common states → returns `true` from `evaluateStateMutex()`, terminates pipeline with SAFE severity
+- **Intersect**: Two StateSets have partial overlap → creates `STATE_INTERSECT_RISK` (diagnostic severity SAFE), continues evaluation
+- **Subset**: StateSet A ⊂ StateSet B → creates `StateTag.StateSubset(leftIsSubset: boolean)` record, continues to next stage
+  - The `leftIsSubset` flag indicates which binding has the narrower state range
+  - This info is crucial in `evaluateIntercept()` to determine if partial override can occur
+- **StateSet tree structure**: `StateSet` is backed by a boolean expression tree (`eval/mutex/tree/`) composed of `LeafNode` (a named mutex set), `AndNode`, `OrNode`, and `NotNode`. The codec in `Codecs.STATES_CODEC` parses these automatically from JSON.
 
 ### Interceptive Bindings
-If either binding intercepts input, it may create:
-- `DynamicRisk.InterceptInput` - One-way interception
-- `DynamicRisk.RaceCondition` - Both intercept (undefined behavior)
-- These escalate state_subset risks and can downgrade other risks if intents overlap
+Input interception evaluation in `evaluateIntercept()`:
+- **No interception**: Both bindings receive input concurrently → `CONCURRENT_INPUT` (diagnostic)
+- **One-way interception**: One binding intercepts → `INTERCEPT_INPUT` (WARNING severity)
+- **Mutual interception**: Both intercept → `RACE_CONDITION` (SEVERE severity)
+- **Partial Override**: Interception exists AND state subset relationship means one binding always/never intercepts within the other's active states → `PARTIAL_OVERRIDE`, terminates evaluation with INFO/WARNING severity
+
+These are `RiskEntry<InterceptTag>` records, not mutable `DynamicRisk` instances.
 
 ### Resource Conflict Matrix
 Detected in `evaluateResource()`: overlapping resources trigger CONCURRENT_WRITE (severe) unless both read-only or protected by interception.

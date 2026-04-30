@@ -1,6 +1,7 @@
 package com.lnatit.chord.result.context;
 
 import com.lnatit.chord.result.RiskEntry;
+import com.lnatit.chord.result.RiskTag;
 import com.lnatit.chord.result.Severity;
 
 public enum StateTag implements RiskTag

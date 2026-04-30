@@ -1,7 +1,5 @@
 package com.lnatit.chord.result;
 
-import com.lnatit.chord.result.context.RiskTag;
-
 public record ConflictTag(String shortCode, boolean isDiagnostic) implements RiskTag
 {
     // K physical key

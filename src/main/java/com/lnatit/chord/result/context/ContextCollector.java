@@ -82,6 +82,7 @@ public class ContextCollector implements Collector<ConflictRisk.Packed>
     public ConflictRisk.Packed collect() {
         List<ConflictRisk> risks = new ArrayList<>();
         for (ConflictRisk field : new ConflictRisk[]{state, intercept, redirect, resource, intent, modality}) {
+            // 符合原始设计约定：流水线运行时第一个null后的字段将全部为null，直接break减少遍历开销
             if (field != null) {risks.add(field);}
             else {break;}
         }
