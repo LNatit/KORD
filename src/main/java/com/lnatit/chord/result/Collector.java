@@ -2,39 +2,45 @@ package com.lnatit.chord.result;
 
 import com.lnatit.chord.semantic.KeyContext;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public interface Collector<R extends ConflictRisk> {
     R collect();
 
-    static MappedCollector<KeyContext, ConflictRisk.Packed, Finalized.Pipeline> pipeline() {
-        return new MappedCollector.Pipeline();
+    static PipelineCollector pipeline() {
+        return new PipelineCollector();
     }
 
-    static MappedCollector<KeyContext.Pair, RiskEntry<?>, Finalized.Custom> custom() {
-        return new MappedCollector.Custom();
+    static ContextCollector context() {
+        return new ContextCollector();
     }
 
-    abstract class MappedCollector<K, V extends ConflictRisk, R extends Finalized> implements Collector<R> {
-        protected final Map<K, V> risks = new LinkedHashMap<>();
+    final class PipelineCollector implements Collector<Finalized> {
+        private final Map<KeyContext, ConflictRisk.Packed> risks = new LinkedHashMap<>();
 
-        public void add(K context, V risk) {
+        public void add(KeyContext context, ConflictRisk.Packed risk) {
             this.risks.put(context, risk);
         }
 
-        private static class Pipeline extends MappedCollector<KeyContext, ConflictRisk.Packed, Finalized.Pipeline> {
-            @Override
-            public Finalized.Pipeline collect() {
-                return new Finalized.Pipeline(this.risks);
-            }
+        @Override
+        public Finalized collect() {
+            return new Finalized.Pipeline(this.risks);
+        }
+    }
+
+    final class ContextCollector implements Collector<Finalized> {
+        private final List<KeyContext.Pair> pairs = new ArrayList<>(2);
+
+        public void add(KeyContext.Pair pair) {
+            this.pairs.add(pair);
         }
 
-        private static class Custom extends MappedCollector<KeyContext.Pair, RiskEntry<?>, Finalized.Custom> {
-            @Override
-            public Finalized.Custom collect() {
-                return this.risks.isEmpty() ? Finalized.Custom.EMPTY : new Finalized.Custom(this.risks);
-            }
+        @Override
+        public Finalized collect() {
+            return this.pairs.isEmpty() ? Finalized.CONTEXT_MUTEX : Finalized.ofPairs(this.pairs);
         }
     }
 }

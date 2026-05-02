@@ -1,6 +1,7 @@
 package com.lnatit.chord.semantic;
 
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,15 +13,8 @@ public sealed interface KeySemantic permits KeySemantic.Semantical, KeySemantic.
 
     record Semantical(LinkedHashMap<KeyContext, ContextSemantic> semanticMap) implements KeySemantic
     {
-        public Semantical {
-            for (var entry : semanticMap.entrySet()) {
-                if (entry.getKey().type() != ConflictType.SELF_ONLY) {
-                    throw new IllegalArgumentException(
-                            "Only SELF_ONLY contexts are allowed in Semantical key semantic, got: "
-                            + entry.getKey().type());
-                }
-            }
-        }
+        @ApiStatus.Internal
+        public Semantical {}
 
         @Override
         public SequencedCollection<KeyContext> getContexts() {
@@ -28,16 +22,9 @@ public sealed interface KeySemantic permits KeySemantic.Semantical, KeySemantic.
         }
     }
 
+    // Self only is allowed only in fallback, but not in datapack def
     record RawContext(KeyContext context) implements KeySemantic
     {
-        public RawContext {
-            if (context.type() == ConflictType.SELF_ONLY) {
-                throw new IllegalArgumentException(
-                        "SELF_ONLY contexts are not allowed in RawContext key semantic, got: "
-                        + context.type());
-            }
-        }
-
         @Override
         public SequencedCollection<KeyContext> getContexts() {
             return List.of(context);

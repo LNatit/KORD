@@ -42,6 +42,11 @@ public record KeyContext(String id, IKeyConflictContext context, ConflictType ty
         return null;
     }
 
+    public static KeyContext anonymous(IKeyConflictContext ctx) {
+        // TODO if it is an enum, then use ClassName+EnumName as id, else use ClassName
+        return null;
+    }
+
     public record Pair(KeyContext left, KeyContext right) {
         public Pair {
             if (left.type() != ConflictType.CUSTOM || right.type() != ConflictType.CUSTOM) {

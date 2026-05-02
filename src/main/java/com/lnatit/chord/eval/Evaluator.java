@@ -2,6 +2,7 @@ package com.lnatit.chord.eval;
 
 import com.lnatit.chord.eval.intent.IntentList;
 import com.lnatit.chord.eval.mutex.StateSet;
+import com.lnatit.chord.eval.override.OverrideManager;
 import com.lnatit.chord.eval.resource.Resource;
 import com.lnatit.chord.result.*;
 import com.lnatit.chord.result.context.*;
@@ -19,54 +20,51 @@ public interface Evaluator
      * @see KeyMapping#same(KeyMapping)
      */
     static ConflictResult conflicts(KeyMapping subject, KeyMapping opponent) {
-        KeyMapping left = subject;
-        KeyMapping right = opponent;
-        if (((SemanticalKey) left).chord$compareTo(right) > 0) {
-            KeyMapping temp = left;
-            left = right;
-            right = temp;
-        }
+        KeyPair pair = KeyPair.of(subject, opponent);
+        boolean flag = pair.leftId().equals(subject.getName());
+        KeyMapping left = flag ? subject : opponent;
+        KeyMapping right = flag ? opponent : subject;
 
         // Physical Context TODO maybe use a keyed lookup instead of iteration?
         if (!isSameKey(left, right)) {
-            return new ConflictResult(left, right, ConflictResult.Origin.PIPELINE_EVALUATE, Collector.custom().collect());
+            return new ConflictResult(pair, Finalized.HARDWARE_INPUT);
         }
 
-        // User override TODO
-//        ConflictResult override = OverrideManager.getOverride(subject, opponent);
-//        if (override != null) {
-//            return override;
-//        }
+        // User override
+        ConflictResult override = OverrideManager.getOverride(pair);
+        if (override != null) {
+            return override;
+        }
 
         KeySemantic leftSemantic = ((SemanticalKey) left).chord$getSemantic();
         KeySemantic rightSemantic = ((SemanticalKey) right).chord$getSemantic();
 
-        // 处理路径1: Semantical型（数据驱动的复杂语义）
-        // 这类按键从资源包加载了详细的上下文和语义定义，支持多个上下文和精细化的冲突分析
         if (leftSemantic instanceof KeySemantic.Semantical(var leftMap)
             && rightSemantic instanceof KeySemantic.Semantical(var rightMap)) {
-            // 阶段3：上下文重叠 - 只有在相同上下文中才会冲突
-            var collector = Collector.pipeline();
             List<KeyContext> overlapping = leftSemantic.getContexts().stream()
                     .filter(rightSemantic.getContexts()::contains)
                     .toList();
-            // 对每个重叠的上下文执行完整的7维语义评估
+
+            if (overlapping.isEmpty()) {
+                return new ConflictResult(pair, Finalized.CONTEXT_MUTEX);
+            }
+
+            var collector = Collector.pipeline();
             for (var ctx : overlapping) {
                 collector.add(ctx, eval(leftMap.get(ctx), rightMap.get(ctx)).collect());
             }
-            return new ConflictResult(left, right, ConflictResult.Origin.PIPELINE_EVALUATE, collector.collect());
+            return new ConflictResult(pair, collector.collect());
         }
 
-        var collector = Collector.custom();
+        var collector = Collector.context();
         for (var leftCtx : leftSemantic.getContexts()) {
             for (var rightCtx : rightSemantic.getContexts()) {
                 if (isContextOverlapping(leftCtx, rightCtx)) {
-                    collector.add(new KeyContext.Pair(leftCtx, rightCtx), RiskEntry.create(RiskTag.of("context_overlap"), Severity.SEVERE));
-                    // TODO record corresponding contexts, since all tags are co, no need a universal collector
+                    collector.add(new KeyContext.Pair(leftCtx, rightCtx));
                 }
             }
         }
-        return new ConflictResult(left, right, ConflictResult.Origin.CONTEXT_DIRECT, collector.collect());
+        return new ConflictResult(pair, collector.collect());
     }
 
     static boolean isSameKey(KeyMapping left, KeyMapping right) {

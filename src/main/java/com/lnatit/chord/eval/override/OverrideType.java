@@ -1,21 +1,30 @@
 package com.lnatit.chord.eval.override;
 
-import com.lnatit.chord.result.ConflictTag;
+import com.lnatit.chord.result.RiskTag;
 
 public enum OverrideType
 {
-    USER(ConflictTag.USER_OVERRIDE),
-    BUILTIN(ConflictTag.BUILTIN_OVERRIDE),
-    CREATOR(ConflictTag.CREATOR_OVERRIDE),
-    PLAYER(ConflictTag.PLAYER_OVERRIDE);
+    USER(RiskTag.of("user_override")),
+    BUILTIN(RiskTag.of("builtin_override")),
+    CREATOR(RiskTag.of("creator_override")),
+    PLAYER(RiskTag.of("player_override"));
 
-    private final ConflictTag tag;
+    private final RiskTag tag;
 
-    OverrideType(ConflictTag tag) {
+    OverrideType(RiskTag tag) {
         this.tag = tag;
     }
 
-    public ConflictTag tag() {
+    public RiskTag tag() {
         return tag;
+    }
+
+    public Origin toOrigin() {
+        return switch (this) {
+            case BUILTIN -> Origin.BUILTIN;
+            case CREATOR -> Origin.CREATOR;
+            case USER -> Origin.USER;
+            case PLAYER -> Origin.PLAYER;
+        };
     }
 }

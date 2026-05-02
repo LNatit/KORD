@@ -1,5 +1,9 @@
 package com.lnatit.chord.result;
 
+import com.lnatit.chord.semantic.KeyContext;
+
+import java.util.List;
+
 public interface RiskEntry<T extends RiskTag> extends ConflictRisk
 {
     T tag();
@@ -40,6 +44,24 @@ public interface RiskEntry<T extends RiskTag> extends ConflictRisk
 
         public void setSeverity(Severity severity) {
             this.severity = severity;
+        }
+    }
+
+    record ContextPairs(List<KeyContext.Pair> pairs) implements RiskEntry<RiskTag>
+    {
+        public ContextPairs {
+            // TODO maybe no need an extra copy?
+            pairs = List.copyOf(pairs);
+        }
+
+        @Override
+        public RiskTag tag() {
+            return RiskTag.CONTEXT_CONFLICT;
+        }
+
+        @Override
+        public Severity severity() {
+            return pairs().isEmpty() ? Severity.SAFE : Severity.SEVERE;
         }
     }
 }

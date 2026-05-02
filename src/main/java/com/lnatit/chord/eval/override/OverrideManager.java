@@ -1,26 +1,23 @@
 package com.lnatit.chord.eval.override;
 
-import com.lnatit.chord.result.legacy.ConflictRisk;
-import com.lnatit.chord.result.legacy.ConflictResult;
-import com.lnatit.chord.result.Severity;
-import net.minecraft.client.KeyMapping;
+import com.lnatit.chord.eval.KeyPair;
+import com.lnatit.chord.result.ConflictResult;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 public interface OverrideManager
 {
     List<OverrideType> PRIORITY = List.of(OverrideType.USER, OverrideType.PLAYER, OverrideType.CREATOR, OverrideType.BUILTIN);
-    Map<OverrideType, Map<Pair, ConflictResult>> OVERRIDES = createOverrideMap();
+    Map<OverrideType, Map<KeyPair, ConflictResult>> OVERRIDES = createOverrideMap();
 
-    private static Map<OverrideType, Map<Pair, ConflictResult>> createOverrideMap() {
-        Map<OverrideType, Map<Pair, ConflictResult>> map = new EnumMap<>(OverrideType.class);
+    private static Map<OverrideType, Map<KeyPair, ConflictResult>> createOverrideMap() {
+        Map<OverrideType, Map<KeyPair, ConflictResult>> map = new EnumMap<>(OverrideType.class);
         for (OverrideType type : OverrideType.values()) {
-            map.put(type, new java.util.HashMap<>());
+            map.put(type, new HashMap<>());
         }
         return map;
     }
@@ -35,54 +32,18 @@ public interface OverrideManager
         }
     }
 
-    static void put(OverrideType type, Pair pair, ConflictResult result) {
+    static void put(OverrideType type, KeyPair pair, ConflictResult result) {
         OVERRIDES.get(type).put(pair, result);
     }
 
     @Nullable
-    static ConflictResult getOverride(Pair pair) {
+    static ConflictResult getOverride(KeyPair pair) {
         for (OverrideType type : PRIORITY) {
             ConflictResult result = OVERRIDES.get(type).get(pair);
             if (result != null) {
-                return withSourceTag(result, type);
+                return result;
             }
         }
         return null;
-    }
-
-    @Nullable
-    static ConflictResult getOverride(KeyMapping key1, KeyMapping key2) {
-        return getOverride(Pair.of(key1, key2));
-    }
-
-    // Todo inspect
-    private static ConflictResult withSourceTag(ConflictResult result, OverrideType type) {
-        List<ConflictRisk> metaRisks = new ArrayList<>(result.metaRisks());
-        if (metaRisks.stream().noneMatch(risk -> risk.tag().equals(type.tag()))) {
-            metaRisks.add(ConflictRisk.create(type.tag(), Severity.SAFE));
-        }
-        return null;
-    }
-
-    record Pair(String key1, String key2)
-    {
-        public static Pair of(KeyMapping key1, KeyMapping key2) {
-            return new Pair(key1.getName(), key2.getName());
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (obj instanceof Pair(String key3, String key4)) {
-                return Objects.equals(key1(), key3) && Objects.equals(key2(), key4)
-                       || Objects.equals(key1(), key4) && Objects.equals(key2(), key3);
-            }
-            return false;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hashCode(key1()) ^ Objects.hashCode(key2());
-        }
     }
 }

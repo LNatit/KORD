@@ -1,5 +1,6 @@
 package com.lnatit.chord;
 
+import com.lnatit.chord.data.context.ContextReloadListener;
 import com.lnatit.chord.data.mutex.MutexSetManager;
 import com.lnatit.chord.data.override.DatapackOverrideReloader;
 import com.lnatit.chord.data.resource.ResourceReloadListener;
@@ -24,6 +25,7 @@ public class Chord {
 
 
     private void registerChordReloadListeners(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener(ContextReloadListener.INSTANCE);
         event.registerReloadListener(MutexSetManager.INSTANCE);
         event.registerReloadListener(ResourceReloadListener.INSTANCE);
         event.registerReloadListener(KeySemanticManager.INSTANCE);
