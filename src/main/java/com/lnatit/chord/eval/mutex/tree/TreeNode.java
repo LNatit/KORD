@@ -5,7 +5,7 @@ import com.lnatit.chord.data.mutex.MutexSet;
 
 import java.util.List;
 
-public interface TreeNode
+public sealed interface TreeNode permits AndNode, LeafNode, NotNode, OrNode
 {
     StateSet toStateSet();
 

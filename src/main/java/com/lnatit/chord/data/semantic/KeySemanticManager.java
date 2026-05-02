@@ -6,6 +6,7 @@ import com.lnatit.chord.data.Codecs;
 import com.lnatit.chord.eval.intent.Intent;
 import com.lnatit.chord.semantic.SemanticalKey;
 import com.mojang.serialization.DataResult;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -32,9 +33,8 @@ public class KeySemanticManager extends SimpleJsonResourceReloadListener {
         try {
             for (Map.Entry<ResourceLocation, JsonElement> entry : map.entrySet()) {
                 ResourceLocation id = entry.getKey();
-                JsonElement json = entry.getValue();
 
-                DataResult<KeyDefinition> result = decodeDefinition(json);
+                DataResult<KeyDefinition> result = Codecs.KEY_DEFINITION_CODEC.parse(JsonOps.INSTANCE, entry.getValue());
                 if (result.isError()) {
                     Chord.LOGGER.warn("Failed to parse key definition in '{}': {}", id, result.error().orElseThrow());
                     continue;
@@ -67,13 +67,4 @@ public class KeySemanticManager extends SimpleJsonResourceReloadListener {
         Chord.LOGGER.info("Loaded {} key semantic definitions.", loaded);
         profiler.pop();
     }
-
-    private static DataResult<KeyDefinition> decodeDefinition(JsonElement json) {
-        // Placeholder: KeyDefinition codec is intentionally deferred until data schema stabilizes.
-        if (json.isJsonNull()) {
-            return DataResult.error(() -> "KeyDefinition json is null.");
-        }
-        return DataResult.error(() -> "KeyDefinition codec is not wired yet.");
-    }
-
 }
