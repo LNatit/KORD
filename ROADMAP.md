@@ -1,567 +1,227 @@
 # Chord Mod Development Roadmap
 
-Strategic roadmap for the Chord keybinding conflict detection mod, organized by phase and priority. Last updated: April 2026.
+Pragmatic roadmap for the Chord keybinding conflict mod, aligned to current source code status. Last updated: May 2026.
 
 ---
 
 ## Executive Summary
 
-**Current Status:** Core conflict analysis engine (~80% complete) with functional evaluation pipeline, semantic data model, Mixin integration, fully operational override loading pipeline (BUILTIN/CREATOR), and mutex set data loading. Primary gaps: Intent system, User override persistence (USER/PLAYER level), UI/UX, and comprehensive testing.
+**Current Status:** The evaluator core is implemented (hardware check, overrides lookup, context routing, six semantic-stage context evaluation). The semantic model has already been refactored to `KeySemantic.Semantical` / `KeySemantic.RawContext` with collector-based risk accumulation (`RiskEntry`, `Finalized`, `ConflictRisk.Packed`).
 
-**Vision:** Transform Chord from a backend analysis engine into a complete user-facing mod that intelligently detects, communicates, and helps resolve keyboard keybinding conflicts across Minecraft and modded environments.
+**Primary Gaps:**
+- Datapack decode wiring is still placeholder-based in context/key semantic/override reloaders.
+- No persisted user overrides (`USER`/`PLAYER`) yet.
+- UI is scaffold-only (`gui/KeyBindingScreen.java`).
+- No automated test suite (`src/test/java` absent).
+- No bundled `data/chord/**` JSON samples in resources.
 
----
-
-## Architecture Assessment
-
-### ✅ Completed Components
-
-#### 1. **Core Evaluation Pipeline** (Evaluator.java)
-- **Status:** 90% Complete
-- **Implementation:**
-  - 8-stage conflict detection pipeline fully implemented
-  - 7 semantic dimensions captured in KeySemantic record
-  - Dynamic risk propagation and escalation logic working
-  - ConflictCollector pattern for multi-stage accumulation
-- **Quality:** Well-structured, immutable design, stage ordering locked
-- **What's Ready:**
-  - Hardware matching (`isSameKey`)
-  - Context overlap detection (`isContextOverlapping`)
-  - State mutex evaluation (`evaluateStateMutex`)
-  - Input interception analysis (`evaluateIntercept`)
-  - Redirect mode matrix routing (`evaluateRedirect`)
-  - Resource conflict detection (`evaluateResource`)
-  - Modality conflict matrix (`evaluateModality`)
-
-#### 2. **Semantic Dimension Models**
-- **KeySemantic Record:** ✅ Complete - immutable 7-field record with `KeySemantic.DEFAULT` constant
-- **State Set Logic** (StateSet.java): ✅ 85% - Sealed interface with HyperRect/UnionSet, full boolean algebra (intersect/union/complement/subset) implemented; two `// TODO recheck` markers remain in `HyperRect.intersect()` and `HyperRect.complement()` but logic is functional
-- **Modality Matrix** (Modality.java): ✅ 95% - Complete enum with 2D conflict matrix (P/H/T/C combinations), recovery cost rationale documented
-- **RedirectMode Matrix** (RedirectMode.java): ✅ 95% - Complete enum with asymmetric matrix covering context transitions
-- **Resource Model** (Resource.java): ✅ 80% - Node/ROOT structure, `overlaps()` uses LCA path matching; marked `// TODO`, needs edge-case hardening and null-safety review
-
-#### 3. **Mixin Integration**
-- **MixinKeyMapping:** ✅ Complete - Injects semantic storage into KeyMapping via SemanticalKey interface
-- **chord.mixins.json:** ✅ Configured - Client-side mixin with default require = 1
-- **Integration Points:** 
-  - KeyMapping extended with `chord$semantics` HashMap
-  - Clear/add/get semantic operations working
-
-#### 4. **Data Loading & Serialization**
-- **MutexSetManager:** ✅ Complete - Fully operational `SimpleJsonResourceReloadListener` for `mutex_sets/**/*.json`; handles namespace inference, requirement gating, and override logging
-- **KeySemanticManager:** ✅ 90% - SimpleJsonResourceReloadListener implementation functional
-- **DatapackOverrideReloader:** ✅ Complete - Fully operational; loads `builtin_overrides/**/*.json`, populates `OverrideManager` with `BUILTIN`/`CREATOR` entries, clears both on reload
-- **Codecs.java:** ✅ 90% - Complete Codec definitions for all 7 dimensions + state tree codecs (And/Or/Not/Leaf nodes), `MUTEX_DEFINITIONS_CODEC`, `OVERRIDE_DEFINITION_CODEC`
-- **JSON Schema Support:** ✅ Partial - Codecs ready, no sample `key_semantics/` or `builtin_overrides/` JSON files in resources yet
-
-#### 5. **Result & Risk Types**
-- **ConflictResult:** ✅ Complete - Immutable severity + risks list; `ConflictResult.SAFE` constant present
-- **ConflictTag:** ✅ Complete - All static debug tags defined including all four override-source tags (`USER_OVERRIDE`, `BUILTIN_OVERRIDE`, `CREATOR_OVERRIDE`, `PLAYER_OVERRIDE`)
-- **Severity Enum:** ✅ Complete - SAFE/INFO/WARNING/SEVERE with downgrade logic
-- **DynamicRisk Hierarchy:** ✅ 95% - All concrete subclasses fully implemented:
-  - `StateSubset` (escalation → `PARTIAL_OVERRIDE` tag)
-  - `InterceptInput` / `RaceCondition` (abstract `Interceptive` base)
-  - `ContextLeak` / `LoseFocus` (abstract `SingleModifier` base with modality-driven severity)
-  - `DeferredRisk` (HOLD/TOGGLE/PRESS severity matrix)
-  - `InputBlock` (KEY+MOUSE modality matrix)
-  - `ModalJudged` abstract base for modal-sensitive risks
-
-#### 6. **Override Manager** (eval/override/)
-- **Status:** 75% Complete
-- **Implemented:**
-  - `OverrideManager` interface with `EnumMap`-backed storage, `put`/`get`/`clear`/`clearAll` static methods
-  - `Pair` record with symmetric `equals`/`hashCode` (order-independent lookup)
-  - Priority list: `USER > PLAYER > CREATOR > BUILTIN`
-  - `withSourceTag()` automatically appends the override-source debug tag to returned results
-  - `Type` enum fully wired to `ConflictTag` constants
-  - `DatapackOverrideReloader` fully loads `BUILTIN`/`CREATOR` overrides from datapacks
-  - All three reload listeners registered in `Chord.java`
-- **Remaining Gaps:**
-  - No `UserOverrideManager` — `USER`/`PLAYER` level overrides cannot be persisted or loaded
-  - No `builtin_overrides/*.json` data files seeded in resources
-- **Impact:** Medium — automatic (BUILTIN/CREATOR) overrides work end-to-end; user-defined overrides are blocked only by missing persistence layer
-
-#### 7. **Build Infrastructure**
-- **Gradle Setup:** ✅ Complete - ModDevGradle 2.0.141 configured
-- **Java 21 Enforcement:** ✅ Complete
-- **Run Configs:** ✅ Autogenerated - runClient/runServer/runData/runGameTestServer
-- **Parchment Mappings:** ✅ Configured - Enhanced parameter names available
+**Vision:** Deliver a complete, user-facing mod that can detect, explain, and help resolve keybinding conflicts across vanilla and modded environments.
 
 ---
 
-### ⚠️ Partially Implemented Components
+## Verified Baseline (Code-As-Truth)
 
-#### 1. **Intent System** (Intent.java)
-- **Status:** 20% - Framework only
-- **Current State:**
-  - Interface with `name()` method and `of(String)` factory (returns anonymous lambda — no enum)
-  - `hasShared()`: implemented via reference equality (`==`) — will always return false for `of()`-created instances since each call creates a new lambda
-  - `contains()`: implemented via HashSet containsAll
-  - `isIdentical()`: stub — hardcoded `return false`
-- **Gaps:**
-  - No concrete Intent implementations or enum; `hasShared()` reference-equality check means it never triggers in practice
-  - No intent categories (movement, camera, ui, combat, etc.)
-  - `isIdentical()` is non-functional
-- **Impact:** Moderate - `evaluateIntent()` is called but effectively a no-op; the downgrade path for `Interceptive` risks is never reached via intent
+### Implemented and Working in Code
 
-#### 2. **Context Layer** (IKeyContext.java + KeyContext.java)
-- **Status:** 70% - Functional for current use cases
-- **Current State:**
-  - `KeyContext` enum complete with 4 values: `AS_IS`, `UNIVERSAL`, `IN_GAME`, `IN_GUI`
-  - Each value wraps a `UnaryOperator<IKeyConflictContext>` and implements `transform()`
-  - `IKeyContext.Lookup` delegates to `KeyContext.valueOf(name)` — handles the 4 built-in contexts
-- **Gaps:**
-  - `Lookup.transform()` contains empty comment block suggesting planned reflection-based mod context lookup that was never implemented
-  - No support for mod-provided `IKeyConflictContext` implementations beyond the 4 built-in values
-- **Impact:** Low - sufficient for vanilla + NeoForge standard contexts; extensibility to arbitrary mod contexts is blocked
+1. **Evaluator Pipeline** (`src/main/java/com/lnatit/chord/eval/Evaluator.java`)
+   - `Evaluator` is an interface with static methods.
+   - `conflicts(KeyMapping, KeyMapping)` flow exists.
+   - Stage order in context evaluation is implemented as:
+     - `evaluateStateMutex`
+     - `evaluateIntercept`
+     - `evaluateRedirect`
+     - `evaluateResource`
+     - `evaluateIntent`
+     - `evaluateModality`
 
-#### 3. **Mutex State Operations** (StateSet.java)
-- **Status:** 85% - Core algebra functional, edge cases uncertain
-- **Current State:**
-  - `HyperRect` + `UnionSet` sealed implementations with full algebra
-  - `intersect`, `union`, `complement`, `isSubsetOf`, `isProperSubsetOf`, `isSupersetOf` all implemented
-  - `isIdenticalWith()` has a working double-subset check (despite `// TODO` comment)
-  - `MutexSetManager` fully loads mutex group definitions from datapacks
-- **Gaps:**
-  - `HyperRect.intersect()` and `HyperRect.complement()` both have `// TODO recheck` markers — correctness of multi-dimension complement logic unverified by tests
-  - No unit tests to validate algebra properties (commutativity, associativity, De Morgan's laws)
-- **Impact:** Low-medium — logic appears sound but edge cases in complex multi-set boolean trees are unproven
+2. **Semantic Model** (`src/main/java/com/lnatit/chord/semantic/`)
+   - `KeySemantic` is sealed with `Semantical` and `RawContext`.
+   - `ContextSemantic` contains the 7 dimensions.
+   - `KeySemantic.fallback(...)` routes unknown contexts to anonymous `ConflictType.CUSTOM` wrappers.
+
+3. **Result Model** (`src/main/java/com/lnatit/chord/result/`)
+   - Uses `ConflictResult`, `Finalized`, `ConflictRisk`, `RiskEntry`, `RiskTag`, `Severity`.
+   - Per-stage tags are in `result/context/*Tag`.
+   - Mutable risk adjustment uses `RiskEntry.Simple`, not a separate `DynamicRisk` hierarchy.
+
+4. **Reload Listener Registration** (`src/main/java/com/lnatit/chord/Chord.java`)
+   - 5 listeners registered:
+     - `ContextReloadListener`
+     - `MutexSetManager`
+     - `ResourceReloadListener`
+     - `KeySemanticManager`
+     - `DatapackOverrideReloader`
+
+5. **Mixin Integration**
+   - `src/main/resources/chord.mixins.json` includes `client.MixinKeyMapping`.
+   - `MixinKeyMapping` stores semantic payload through `SemanticalKey` methods.
+
+### Partially Implemented / Blocked
+
+1. **Datapack Decode Wiring**
+   - Placeholder decode functions still return error:
+     - `ContextReloadListener.decodeDefinition(...)`
+     - `KeySemanticManager.decodeDefinition(...)`
+     - `DatapackOverrideReloader.decodeDefinition(...)`
+
+2. **Intent Dimension**
+   - `Intent` has decode-stage cache (`beginDecode`/`endDecode`) and `Intent.of(...)` intern-like behavior during decode.
+   - `IntentList.hasShared(...)` and `IntentList.isIdentical(...)` are implemented.
+   - Practical impact remains limited until semantic datapack decode is wired.
+
+3. **UI Layer**
+   - Only scaffold exists: `src/main/java/com/lnatit/chord/gui/KeyBindingScreen.java`.
+
+4. **Tests**
+   - No `src/test/java` in repository.
 
 ---
 
-### ❌ Missing/Incomplete Components
+## What Was Corrected in This Roadmap
 
-#### 1. **User Interface Layer (0% - Design Phase)**
-- **Missing:**
-  - Mod options/settings screen
-  - Keybinding conflict visualization/reporting UI
-  - Override management UI
-  - In-game conflict warnings/notifications
-- **Requirements:**
-  - Screen class, list/tree widget for conflicts, severity coloring, override buttons
+The following outdated references were removed from planning assumptions:
 
-#### 2. **Testing Infrastructure (0%)**
-- **Missing:**
-  - No unit tests for Evaluator pipeline
-  - No state algebra property tests
-  - No integration tests with actual KeyMappings
-  - No game tests (runGameTestServer not utilized)
-- **Requirements:**
-  - JUnit 5 test suite with parameterized tests for matrix combinations
+- Old result model terms (`ConflictTag`, `DynamicRisk`, `ConflictCollector`) -> replaced with current `RiskTag`/`RiskEntry`/collector model.
+- Old semantic/context model claims (`IKeyContext` enum workflow, `AS_IS`) -> replaced with current `KeyContext` registry + `ConflictType`.
+- Old override symbols (`Type`, `withSourceTag`, `Pair`-centric docs) -> replaced with current `OverrideType`, `KeyPair`, `OverrideManager` map priority.
+- Incorrect listener count claims (3/4 listeners) -> normalized to current 5-listener registration.
+- Claims that context/key semantic/override datapack decode is fully operational -> corrected to placeholder status.
 
-#### 3. **Event Listeners & Game-Lifecycle Hooks (30%)**
-- **Implemented:**
-  - `RegisterClientReloadListenersEvent` — all 3 resource reload listeners registered in `Chord.java`
-- **Missing:**
-  - KeyMapping registration listener (scan for conflicts when mods add new keybindings)
-  - Client tick event listener (periodic conflict re-scan)
-  - Screen open event listener (context-specific warnings)
-  - Mod load completion listener (trigger full conflict scan)
+---
 
-#### 4. **KeySemantic / Override JSON Data Files (0%)**
-- **Missing:**
-  - No `key_semantics/*.json` files in `src/main/resources`
-  - No `builtin_overrides/*.json` files in `src/main/resources` (reloader is ready but has nothing to load)
-  - No Minecraft vanilla keybinding semantics catalog
+## Phase Progress (Reality-Based)
 
-#### 5. **User Override Persistence (0%)**
-- **Missing:**
-  - No `UserOverrideManager` — `USER`/`PLAYER` level overrides have no load/save path
-  - `OverrideManager.OVERRIDES` map for these types is always empty at runtime
-- **Impact:** High — users cannot persist custom conflict resolutions across sessions
-
-#### 6. **Logging & Diagnostics (25%)**
-- **Status:** `MutexSetManager` and `DatapackOverrideReloader` have good info/warn/debug logging. `Evaluator` pipeline has no logging.
-- **Missing:** Debug-level pipeline stage logging in Evaluator, risk escalation tracing, performance metrics
-
-#### 7. **Performance Optimization (0%)**
-- No caching of conflict check results
-- Resource overlap algorithm (LCA path) calls `String.split()` and `of()` on every evaluation
-
-#### 8. **Documentation & Examples (30%)**
-- **Exists:** `doc/CONTRIBUTOR_GUIDE_zh-cn.md`, `doc/PIPELINE_zh-cn.md`, `AGENTS.md` (updated)
-- **Missing:** English translations, API JavaDoc, example JSON files, user guide
+- **Phase 1 - Core Stabilization:** In progress
+  - Core pipeline exists.
+  - Lacks tests and edge-case verification for state/resource logic.
+- **Phase 2 - Intent:** Partially complete
+  - Matching helpers exist.
+  - Still blocked by semantic decode pipeline.
+- **Phase 3 - Override & User Config:** Partially complete
+  - In-memory priority map exists.
+  - Missing persisted `USER`/`PLAYER` storage and active datapack decode for builtin entries.
+- **Phase 4 - Runtime Event Integration:** Partially complete
+  - Reload hook exists.
+  - No periodic/runtime conflict scan hooks.
+- **Phase 5 - UI/UX:** Not started (beyond scaffold).
+- **Phase 6 - Testing & Docs:** Testing not started; docs partially available.
+- **Phase 7 - Performance & Polish:** Not started.
 
 ---
 
 ## Development Roadmap
 
-### Phase 1: Core Engine Stabilization (Weeks 1-3, Priority: Critical)
+### Phase 1: Stabilize Core + Verify Correctness (Priority: Critical)
 
-**Goal:** Bring evaluation pipeline to production-ready state with comprehensive testing.
+**Goal:** Make existing evaluator behavior trustworthy and regression-safe.
 
-#### 1.1 Fix TODO Markers
-- [ ] **StateSet HyperRect.intersect() and complement() recheck** (StateSet.java)
-  - Effort: 2 days
-  - Verify multi-dimension complement produces correct HyperRect list
-  - Add unit tests covering De Morgan's laws, complement of union, etc.
-  - **Files:** `eval/mutex/StateSet.java`
+- [ ] Add test project skeleton under `src/test/java/com/lnatit/chord/`.
+- [ ] Add evaluator behavior tests for:
+  - state mutex / subset / intersect paths
+  - intercept race and partial override
+  - redirect + modality coupling
+  - resource conflict severities
+- [ ] Add algebra property tests for `StateSet` (`intersect`, `union`, `complement`, subset relations).
+- [ ] Resolve or validate `// TODO recheck` blocks in `StateSet.HyperRect.intersect()` and `StateSet.HyperRect.complement()`.
 
-- [ ] **Intent.hasShared() reference equality bug**
-  - Effort: 0.5 days
-  - `of(String)` creates a new lambda each call — `hasShared()` can never return true for dynamically created intents
-  - Fix: intern/cache Intent instances by name, or switch to name-based equality
-  - **Files:** `eval/intent/Intent.java`
+**Deliverable:** stable core with baseline automated regression tests.
 
-- [ ] **Resource.overlaps() null safety + optimization**
-  - Effort: 1 day
-  - Handle null resources (currently throws NPE if either resource is null)
-  - Cache resource path hierarchies if needed
-  - **Files:** `eval/resource/Resource.java`
+### Phase 2: Finish Datapack Decode Wiring (Priority: Critical)
 
-#### 1.2 Add Comprehensive Unit Test Suite
-- [ ] Create `src/test/java/com/lnatit/chord/` test structure
-  - Effort: 5 days
-  - **Test Coverage:**
-    - Evaluator pipeline: 8 stages × 3-5 test cases each = 40+ tests
-    - State algebra: isSubsetOf, intersect, union, complement (10+ tests)
-    - Matrix lookups: Modality all 16 combinations, RedirectMode all pairs (8+ tests)
-    - Dynamic risk escalation: StateSubset, InterceptInput, RaceCondition (6+ tests)
-    - Codecs: JSON parsing for all 7 dimensions (7+ tests)
-  - **Tools:** JUnit 5 + Parameterized tests + Mockito for KeyMapping
-  - **Files:** `src/test/java/com/lnatit/chord/{eval,result,data}/*Test.java`
+**Goal:** Turn currently blocked data pipeline into working runtime configuration.
 
-#### 1.3 Pipeline Integration Test
-- [ ] Test Evaluator.conflicts() end-to-end
-  - Effort: 2 days
-  - **Files:** `src/test/java/com/lnatit/chord/eval/EvaluatorIntegrationTest.java`
+- [ ] Implement `ContextReloadListener.decodeDefinition(...)`.
+- [ ] Implement `KeySemanticManager.decodeDefinition(...)`.
+- [ ] Implement `DatapackOverrideReloader.decodeDefinition(...)`.
+- [ ] Reconcile `Codecs` declarations with active loader usage.
+- [ ] Add at least one valid sample for each data source:
+  - `data/chord/contexts/*.json`
+  - `data/chord/key_semantics/*.json`
+  - `data/chord/builtin_overrides/*.json`
 
-#### 1.4 Documentation
-- [ ] Translate PIPELINE_zh-cn.md to English — `doc/PIPELINE.md` (new)
-- [ ] Write API JavaDoc for KeySemantic and all 7 dimension classes
+**Deliverable:** datapack-based semantic and override data can be loaded end-to-end.
 
-**Milestone:** Evaluator pipeline verified production-ready, test coverage >80%.
+### Phase 3: User Override Persistence (Priority: High)
 
----
+**Goal:** Let users persist custom conflict resolutions.
 
-### Phase 2: Intent System Implementation (Weeks 4-5, Priority: High)
+- [ ] Add `UserOverrideManager` to load/save `USER` and `PLAYER` overrides.
+- [ ] Define config file format under `config/chord/`.
+- [ ] Hook lifecycle points for startup load and runtime save.
+- [ ] Ensure loaded entries populate `OverrideManager.OVERRIDES` using `OverrideType.USER` / `OverrideType.PLAYER`.
 
-**Goal:** Complete the Intent dimension with semantic categorization and matching.
+**Deliverable:** user overrides survive restart and participate in override priority.
 
-#### 2.1 Define Intent Categories
-- [ ] Create Intent enum with predefined categories
-  - **Proposed Categories:** MOVEMENT, CAMERA, INTERACTION, UI, UTILITY
-  - **Files:** `eval/intent/Intent.java` (enum implementation)
+### Phase 4: Runtime Integration Events (Priority: Medium)
 
-#### 2.2 Fix Intent Matching Logic
-- [ ] Fix `Intent.hasShared()` — reference equality (`==`) never fires for `of()`-created instances; intern by name or use enum
-- [ ] Implement `Intent.isIdentical()` — currently hardcoded `return false`
-- [ ] Add semantic similarity for intent downgrading in `evaluateIntent()`
-- **Files:** `eval/intent/Intent.java`
+**Goal:** Trigger conflict analysis at meaningful client lifecycle points.
 
-#### 2.3 Intent JSON Codec
-- [ ] Test `INTENT_CODEC` in Codecs.java — deserialize names to Intent instances and validate
-- **Files:** `data/Codecs.java`
+- [ ] Add client event subscriber class (new).
+- [ ] Hook keymapping registration/update moments to schedule scans.
+- [ ] Add optional periodic scan strategy (throttled tick-based).
+- [ ] Define where latest conflict snapshot is stored for UI access.
 
-#### 2.4 Sample Intent Definitions
-- [ ] Create `src/main/resources/data/chord/key_semantics/minecraft.json` with vanilla key intents
-- **Files:** `src/main/resources/data/chord/key_semantics/minecraft.json` (new)
+**Deliverable:** conflict analysis runs automatically, not only on-demand.
 
-**Milestone:** Intent system functional, `evaluateIntent()` produces meaningful downgrade results.
+### Phase 5: UI/UX Delivery (Priority: Medium)
 
----
+**Goal:** Provide usable conflict visualization and management.
 
-### Phase 3: Override Manager & User Configuration (Weeks 6-8, Priority: High)
+- [ ] Evolve `gui/KeyBindingScreen.java` from scaffold to functional screen.
+- [ ] Add conflict list view with severity/context breakdown.
+- [ ] Add detail panel for per-dimension risk explanation.
+- [ ] Add override actions (safe/warn/ignore/reset) backed by persistence layer.
+- [ ] Add localization resources under `assets/chord/lang/`.
 
-**Goal:** Complete user-level override persistence; seed builtin override data files.
+**Deliverable:** end users can inspect and resolve conflicts in game.
 
-> **Note:** Phase 3.1 (in-memory registry), 3.3 (builtin reloader), and 3.5 (debug tagging) are **already complete**. Only 3.2 and 3.4 remain.
+### Phase 6: Documentation and Quality Hardening (Priority: Medium)
 
-#### 3.2 User Override Persistence ⬅ Remaining gap
-- [ ] Create `UserOverrideManager` — load/save `USER`/`PLAYER` overrides from `config/chord/user_overrides.json`
-  - Effort: 3 days
-  - Populate `OverrideManager.OVERRIDES` for `Type.USER` / `Type.PLAYER` on game start
-  - Save on config update
-  - **Files:** `data/override/UserOverrideManager.java` (new)
+**Goal:** Make maintenance and onboarding reliable.
 
-#### 3.4 Builtin Override Registry ⬅ Remaining gap
-- [ ] Seed `src/main/resources/data/chord/builtin_overrides/` with documented JSON files
-  - Effort: 2 days
-  - Research common mod conflicts; `DatapackOverrideReloader` is ready — just needs data
-  - **Files:** `src/main/resources/data/chord/builtin_overrides/*.json` (new)
+- [ ] Keep `AGENTS.md` + `ROADMAP.md` synced with code symbols.
+- [ ] Add JSON format docs for contexts/semantics/overrides.
+- [ ] Add contributor-facing testing guide.
+- [ ] Add API-level JavaDoc for key public structures.
 
-#### ~~3.1 Override Storage Backend~~ ✅ Done
-#### ~~3.3 Builtin Override Reloader~~ ✅ Done (`DatapackOverrideReloader` fully implemented)
-#### ~~3.5 Override Debug Tagging~~ ✅ Done (`ConflictTag` has all 4 override tags; `Type` enum + `withSourceTag()` wired)
+**Deliverable:** clear contributor workflow and lower future drift risk.
 
-**Milestone:** Users can persist custom conflict resolutions; builtin registry seeded.
+### Phase 7: Performance and Polish (Priority: Low)
+
+**Goal:** Improve runtime efficiency after correctness is established.
+
+- [ ] Measure evaluator throughput for realistic keybinding counts.
+- [ ] Add caching only after profiling confirms hotspots.
+- [ ] Review logging granularity (info/warn/debug consistency).
+- [ ] Run dependency CVE checks before release branch.
+
+**Deliverable:** production-polished behavior with measured performance baseline.
 
 ---
 
-### Phase 4: Event Listeners & Real-Time Conflict Detection (Weeks 9-11, Priority: Medium)
+## Success Criteria
 
-**Goal:** Integrate conflict detection into game lifecycle.
+### Functional
+- [ ] Datapack decode path works for contexts, semantics, and overrides.
+- [ ] Intent stage has meaningful runtime effect through loaded semantic data.
+- [ ] User override persistence works across sessions.
+- [ ] UI supports inspect + override loop end-to-end.
 
-> **Note:** `RegisterClientReloadListenersEvent` is already handled in `Chord.java`. Phase 4.3 is complete.
-
-#### 4.1 Client Event Handler Setup
-- [ ] Create `ChordClientEvents.java` — `@EventBusSubscriber(modid = MOD_ID, value = Dist.CLIENT)`
-  - **Files:** `ChordClientEvents.java` (new)
-
-#### 4.2 KeyMapping Registration Listener
-- [ ] Hook `RegisterKeyMappingsEvent` — scan for conflicts on keybind registration, cache results
-  - **Files:** `ChordClientEvents.java`
-
-#### ~~4.3 Resource Reload Listener~~ ✅ Done (all 3 reload listeners registered in `Chord.java`)
-
-#### 4.4 Client Tick Listener (Optional)
-- [ ] Periodic conflict re-scan every N ticks
-  - **Files:** `ChordClientEvents.java`
-
-**Milestone:** Chord detects conflicts as mods load.
+### Quality
+- [ ] Automated tests cover evaluator stage interactions and state algebra edge cases.
+- [ ] No known severe regressions in core conflict evaluation.
+- [ ] Docs reference current symbols and file layout.
 
 ---
 
-### Phase 5: User Interface (Weeks 12-16, Priority: Medium)
+## Immediate Next Actions (Recommended)
 
-**Goal:** Present conflict information and allow users to manage resolutions in-game.
-
-#### 5.1 Mod Options Screen
-- [ ] `ChordConfigScreen` — conflict list with severity coloring, filter buttons, search
-  - **Files:** `client/ChordConfigScreen.java` (new)
-
-#### 5.2 Conflict Detail View
-- [ ] `ConflictDetailScreen` — 7 dimensions side-by-side, primary risk explanation
-  - **Files:** `client/ConflictDetailScreen.java` (new)
-
-#### 5.3 Override Management UI
-- [ ] Override buttons (Mark SAFE / Mark WARNING / Ignore / Reset) wired to `UserOverrideManager`
-  - **Files:** `client/ChordConfigScreen.java` (extend)
-
-#### 5.4 In-Game Notification System
-- [ ] Toast/HUD for SEVERE conflicts on mod load
-  - **Files:** `client/ChordNotificationHandler.java` (new)
-
-#### 5.5 Localization (i18n)
-- [ ] `src/main/resources/assets/chord/lang/en_us.json` (new)
-
-**Milestone:** Users can view, understand, and manage conflicts via in-game GUI.
+1. Implement three placeholder decode methods and add minimal JSON fixtures.
+2. Add first evaluator regression tests (state/intercept/resource focus).
+3. Introduce `UserOverrideManager` contract and persistence format.
 
 ---
 
-### Phase 6: Testing & Documentation (Weeks 17-18, Priority: Medium)
+## Source-of-Truth Note
 
-**Goal:** Full test coverage, user documentation, and contributor guides.
-
-#### 6.1 Integration Tests
-- [ ] `ConflictDetectionIT.java` — 5+ end-to-end scenarios
-
-#### 6.2 Game Tests
-- [ ] `ChordGameTests.java` — verify mixin injection in real game context
-
-#### 6.3 JSON Schema Documentation
-- [ ] `doc/KEY_SEMANTICS_FORMAT.md` — field-by-field JSON format guide
-
-#### 6.4 User Guide
-- [ ] `doc/USER_GUIDE.md` — reading severity levels, using config screen, creating overrides
-
-#### 6.5 Contributor Guide Update
-- [ ] `doc/CONTRIBUTOR_GUIDE.md` — English translation + expanded semantic definition guide
-
-**Milestone:** Test coverage >85%, all documentation in English, ready for beta release.
-
----
-
-### Phase 7: Performance & Polish (Weeks 19-20, Priority: Low)
-
-#### 7.1 Conflict Check Caching
-- [ ] `eval/ConflictCache.java` — LRU cache keyed by (key1, key2, semantic snapshot)
-
-#### 7.2 Performance Profiling
-- [ ] Benchmark 50/100/200 keybindings, target <10ms per conflict pair
-
-#### 7.3 Code Cleanup
-- [ ] Resolve remaining `// TODO recheck` markers in `StateSet.java`
-- [ ] Remove deprecated `INTENT_SHARED` tag in `ConflictTag.java`
-- [ ] Standardize logging levels across all managers
-
-#### 7.4 Dependency Review
-- [ ] Audit transitive dependencies for CVEs; update if needed
-
-**Milestone:** Clean, performant, production-ready codebase.
-
----
-
-### Phase 8: Future Enhancements (Post-Release, Priority: Low)
-
-#### 8.1 Advanced Features
-- [ ] Conflict prediction, mod compatibility matrix, profile system
-
-#### 8.2 Integrations
-- [ ] EMI/REI, JourneyMap, Xaero's Map, Quark, Controlling
-
-#### 8.3 Accessibility
-- [ ] Screen reader support, high contrast mode, colorblind-friendly indicators
-
----
-
-## Success Criteria & Metrics
-
-### Functional Completeness
-- [ ] All 7 dimensions integrated and tested
-- [ ] 8-stage pipeline verified with edge cases
-- [ ] User override system fully functional
-- [ ] GUI accessible and intuitive
-- [ ] Documentation complete in English
-
-### Quality Metrics
-- [ ] Test coverage: >85% (line coverage) + >80% (branch coverage)
-- [ ] Critical bugs: 0 (severity = SEVERE issues)
-- [ ] Performance: <10ms per conflict pair (cached)
-- [ ] Memory: <50MB typical usage with 100 keybindings
-
-### User Adoption
-- [ ] Documentation clarity score: >4/5 (peer review)
-- [ ] First-time user success rate: >90% (can identify own conflicts)
-- [ ] Community feedback: Track GitHub issues/discussions
-
-### Code Quality
-- [ ] Sonarqube: No code smells, <5% duplication
-- [ ] Javadoc: 100% coverage of public API
-- [ ] Build: Green CI/CD pipeline (if applicable)
-
----
-
-## Risk Mitigation
-
-### Technical Risks
-
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|-----------|
-| State algebra edge cases cause false positives | Medium | High | Phase 1: Comprehensive unit tests + property-based testing |
-| Intent categorization too rigid | Medium | Medium | Phase 2: Design intent categories with community input, allow custom intents later |
-| Performance degradation with 200+ keybinds | Low | Medium | Phase 7: Caching + profiling early, incremental optimization |
-| Mixin conflicts with other mods | Low | High | Phase 1: Test with popular mods (Controlling, etc.), document compatibility |
-
-### Resource Risks
-
-| Risk | Mitigation |
-|------|-----------|
-| Large time commitment (20 weeks) | Break into smaller phases; Phase 1-3 are critical path; later phases can be parallel |
-| Lack of testing expertise | Use parameterized tests for matrix combinations; leverage existing test patterns |
-| Chinese documentation barrier | Machine translation + peer review for initial translation; community help for refinement |
-
----
-
-## Timeline Summary
-
-```
-Phase 1: Core Stabilization          (Weeks 1-3)   [CRITICAL PATH]
-Phase 2: Intent Implementation       (Weeks 4-5)   [CRITICAL PATH]
-Phase 3: Override Manager            (Weeks 6-8)   [CRITICAL PATH — only 3.2 & 3.4 remain]
-Phase 4: Event Listeners             (Weeks 9-11)  [Parallel possible — 4.3 already done]
-Phase 5: User Interface              (Weeks 12-16) [Parallel with Phase 4]
-Phase 6: Testing & Documentation     (Weeks 17-18) [Final QA]
-Phase 7: Performance & Polish        (Weeks 19-20) [Final polish]
-────────────────────────────────────────────────────
-Estimated Total: 20 weeks (5 months) for MVP (Phases 1-6)
-Extended Timeline: 20 weeks for production-ready (Phases 1-7)
-```
-
----
-
-## Decision Points for Review
-
-1. **Intent Categories:** Proposed 5 categories (Movement, Camera, Interaction, UI, Utility). Allow custom?
-2. **Override Scope:** Only keybind pairs, or include partial overrides (override one dimension only)?
-3. **UI Framework:** SimpleConfigScreen or custom Screen implementation?
-4. **Performance Target:** <10ms per pair (cached), or acceptable to aim lower initially?
-5. **Release Strategy:** Beta as Phase 6 MVP, or wait for Phase 7 polish?
-6. **Intent equality:** Intern `Intent` instances by name (HashMap cache) or switch to enum? Enum is simpler but less extensible for mod-defined intents.
-
----
-
-## File Structure Reference
-
-```
-src/main/java/com/lnatit/chord/
-├── Chord.java                           [DONE - 3 reload listeners registered]
-├── eval/
-│   ├── Evaluator.java                   [DONE - 90%, interface with static methods]
-│   ├── KeySemantic.java                 [DONE - DEFAULT constant present; add JavaDoc]
-│   ├── SemanticalKey.java               [DONE]
-│   ├── Modality.java                    [DONE - 95%]
-│   ├── RedirectMode.java                [DONE - 95%]
-│   ├── override/
-│   │   ├── OverrideManager.java         [DONE - EnumMap storage, priority, withSourceTag()]
-│   │   └── Type.java                    [DONE - wired to ConflictTag constants]
-│   ├── context/
-│   │   ├── IKeyContext.java             [70% - Lookup works for built-in 4 contexts only]
-│   │   └── KeyContext.java              [DONE - AS_IS/UNIVERSAL/IN_GAME/IN_GUI]
-│   ├── intent/
-│   │   └── Intent.java                  [Phase 2 - hasShared() broken, isIdentical() stub]
-│   ├── mutex/
-│   │   ├── StateSet.java                [85% - 2x TODO recheck; algebra functional]
-│   │   └── tree/                        [DONE - And/Or/Not/Leaf nodes]
-│   └── resource/
-│       └── Resource.java                [80% - TODO, null safety needed]
-├── data/
-│   ├── Codecs.java                      [DONE - all codecs including tree, override, mutex]
-│   ├── Requirement.java                 [DONE]
-│   ├── mutex/
-│   │   ├── MutexSetManager.java         [DONE - fully operational]
-│   │   ├── MutexSet.java                [DONE]
-│   │   └── MutexDefinition.java         [DONE]
-│   ├── semantic/
-│   │   ├── KeySemanticManager.java      [DONE]
-│   │   └── KeyDefinitions.java          [DONE]
-│   └── override/
-│       ├── DatapackOverrideReloader.java [DONE - fully operational]
-│       ├── OverrideDefinition.java       [DONE]
-│       └── UserOverrideManager.java      [Phase 3.2 - NEW]
-├── result/                              [DONE - 95%+]
-│   ├── ConflictResult.java              [DONE - SAFE constant]
-│   ├── ConflictTag.java                 [DONE - all tags including 4 override-source tags]
-│   ├── ConflictRisk.java                [DONE - interface + Static inner class]
-│   ├── DynamicRisk.java                 [DONE - all 7 concrete subclasses implemented]
-│   ├── Severity.java                    [DONE]
-│   └── ConflictCollector.java           [DONE]
-├── mixin/client/
-│   └── MixinKeyMapping.java             [DONE]
-├── util/                                [DONE]
-│   ├── AsymmetricEnumMatrix.java
-│   ├── Provider.java
-│   └── Supplier.java
-└── client/                              [Phase 5 - NEW]
-    ├── ChordClientEvents.java           [Phase 4]
-    ├── ChordConfigScreen.java           [Phase 5]
-    ├── ConflictDetailScreen.java        [Phase 5]
-    └── ChordNotificationHandler.java    [Phase 5]
-
-src/test/java/com/lnatit/chord/         [Phase 1-2 - NEW]
-├── eval/
-│   ├── EvaluatorTest.java
-│   ├── StateSetTest.java
-│   └── EvaluatorIntegrationTest.java
-├── result/
-│   ├── DynamicRiskTest.java
-│   └── ModalityMatrixTest.java
-└── data/
-    └── CodecsTest.java
-
-src/main/resources/data/chord/
-├── key_semantics/
-│   └── minecraft.json                   [Phase 2 - NEW]
-├── builtin_overrides/                   [Phase 3.4 - NEW (reloader ready, no data yet)]
-│   └── common_conflicts.json
-└── mutex_sets/                          [Phase 3.4 - NEW (manager ready, no data yet)]
-
-src/main/resources/assets/chord/lang/
-└── en_us.json                           [Phase 5 - NEW]
-
-doc/
-├── PIPELINE.md                          [Phase 1 - new translation]
-├── CONTRIBUTOR_GUIDE.md                 [Phase 1 - translate + Phase 6 expand]
-├── USER_GUIDE.md                        [Phase 6 - NEW]
-├── KEY_SEMANTICS_FORMAT.md              [Phase 6 - NEW]
-├── PERFORMANCE_REPORT.md                [Phase 7 - NEW]
-└── AGENTS.md                            [✅ Updated]
-```
-
----
-
-## Conclusion
-
-This roadmap provides a structured path to transform Chord from a powerful backend engine into a complete, user-facing mod. The critical path (Phases 1-3) focuses on correctness and user configuration, while later phases add polish and features. The phased approach allows for early validation and course correction before investment in UI/documentation.
-
-**Next immediate action:** Phase 1 — fix `Intent.hasShared()` reference equality bug, add `Resource.overlaps()` null safety, and begin unit test infrastructure for `StateSet` algebra.
+Roadmap status is derived from current source under `src/main/java/com/lnatit/chord/` and `src/main/resources/`. If code and roadmap disagree, code is authoritative and roadmap should be updated immediately.

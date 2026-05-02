@@ -8,6 +8,7 @@ import com.lnatit.chord.eval.override.OverrideManager;
 import com.lnatit.chord.eval.override.OverrideType;
 import com.lnatit.chord.result.ConflictResult;
 import com.mojang.serialization.DataResult;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -37,7 +38,8 @@ public class DatapackOverrideReloader extends SimpleJsonResourceReloadListener
         int loaded = 0;
         for (Map.Entry<ResourceLocation, JsonElement> entry : map.entrySet()) {
             ResourceLocation id = entry.getKey();
-            DataResult<OverrideDefinition> result = decodeDefinition(entry.getValue());
+            DataResult<OverrideDefinition> result = Codecs.OVERRIDE_DEFINITION_CODEC.parse(JsonOps.INSTANCE,
+                                                                                           entry.getValue());
             if (result.isError()) {
                 Chord.LOGGER.warn("Failed to parse builtin override in '{}': {}", id, result.error().orElseThrow());
                 continue;
@@ -78,13 +80,5 @@ public class DatapackOverrideReloader extends SimpleJsonResourceReloadListener
         Chord.LOGGER.info("Loaded {} builtin override entries.", loaded);
         profiler.pop();
 
-    }
-
-    private static DataResult<OverrideDefinition> decodeDefinition(JsonElement json) {
-        // Placeholder: OverrideDefinition codec wiring is intentionally deferred.
-        if (json.isJsonNull()) {
-            return DataResult.error(() -> "OverrideDefinition json is null.");
-        }
-        return DataResult.error(() -> "OverrideDefinition codec is not wired yet.");
     }
 }

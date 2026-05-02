@@ -2,13 +2,73 @@ package com.lnatit.chord.data;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.lnatit.chord.data.context.ContextDefinition;
+import com.lnatit.chord.data.mutex.MutexDefinition;
+import com.lnatit.chord.data.override.OverrideDefinition;
+import com.lnatit.chord.data.resource.ResourceDefinition;
+import com.lnatit.chord.result.Severity;
+import com.lnatit.chord.semantic.ConflictType;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+
+import java.util.List;
 
 public interface Codecs
 {
     Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
     Codec<Boolean> OPTIONAL_BOOL_CODEC = Codec.BOOL.orElse(false);
+
+    Codec<Severity> SEVERITY_CODEC = enumCodec(Severity.class);
+
+    // Use plain text component mapping for now; richer chat JSON codec can replace this later.
+    Codec<MutableComponent> TEXT_COMPONENT_CODEC = Codec.STRING.xmap(Component::literal, Component::getString);
+
+    Codec<Requirement> REQUIREMENT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            Codec.STRING.fieldOf("modid").forGetter(Requirement::modid),
+            Codec.STRING.optionalFieldOf("mod_version_range").forGetter(Requirement::mod_version_range)
+    ).apply(inst, Requirement::new));
+
+    Codec<MutexDefinition> MUTEX_DEFINITIONS_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            Codec.STRING.optionalFieldOf("namespace").forGetter(MutexDefinition::namespace),
+            REQUIREMENT_CODEC.listOf()
+                             .optionalFieldOf("requirements", List.of())
+                             .forGetter(MutexDefinition::requirements),
+            Codec.STRING.listOf().fieldOf("mutexes").forGetter(MutexDefinition::mutexes)
+    ).apply(inst, MutexDefinition::new));
+
+    Codec<ResourceDefinition> RESOURCE_DEFINITION_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            REQUIREMENT_CODEC.optionalFieldOf("requirement").forGetter(ResourceDefinition::requirement),
+            Codec.STRING.optionalFieldOf("path").forGetter(ResourceDefinition::path),
+            OPTIONAL_BOOL_CODEC.fieldOf("supports_concurrent_writes")
+                               .forGetter(ResourceDefinition::supportsConcurrentWrites)
+    ).apply(inst, ResourceDefinition::new));
+
+    Codec<ContextDefinition> CONTEXT_DEFINITION_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            REQUIREMENT_CODEC.fieldOf("requirement").forGetter(ContextDefinition::requirement),
+            Codec.STRING.fieldOf("id").forGetter(ContextDefinition::id),
+            Codec.STRING.fieldOf("lookup").forGetter(ContextDefinition::lookup),
+            enumCodec(ConflictType.class).fieldOf("type").forGetter(ContextDefinition::type)
+    ).apply(inst, ContextDefinition::new));
+
+    Codec<OverrideDefinition.Key> OVERRIDE_KEY_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            REQUIREMENT_CODEC.optionalFieldOf("requirement").forGetter(OverrideDefinition.Key::requirement),
+            Codec.STRING.fieldOf("name").forGetter(OverrideDefinition.Key::name)
+    ).apply(inst, OverrideDefinition.Key::new));
+
+    Codec<OverrideDefinition.Result> OVERRIDE_RESULT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            TEXT_COMPONENT_CODEC.fieldOf("component").forGetter(OverrideDefinition.Result::component),
+            SEVERITY_CODEC.fieldOf("severity").forGetter(OverrideDefinition.Result::severity)
+    ).apply(inst, OverrideDefinition.Result::new));
+
+    Codec<OverrideDefinition> OVERRIDE_DEFINITION_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            OPTIONAL_BOOL_CODEC.fieldOf("is_builtin").forGetter(OverrideDefinition::isBuiltin),
+            OVERRIDE_KEY_CODEC.fieldOf("key1").forGetter(OverrideDefinition::key1),
+            OVERRIDE_KEY_CODEC.fieldOf("key2").forGetter(OverrideDefinition::key2),
+            OVERRIDE_RESULT_CODEC.fieldOf("result").forGetter(OverrideDefinition::result)
+    ).apply(inst, OverrideDefinition::new));
 
 //    Codec<Severity> SEVERITY_CODEC = enumCodec(Severity.class);
 //
@@ -117,16 +177,16 @@ public interface Codecs
 //            KEY_DEFINITION_CODEC.listOf().fieldOf("keys").forGetter(KeyDefinition::keys)
 //    ).apply(inst, KeyDefinition::new));
 //
-//    static <T extends Enum<T>> Codec<T> enumCodec(Class<T> enumType) {
-//        return Codec.STRING.xmap(str -> {
-//            try {
-//                return Enum.valueOf(enumType, str.toUpperCase());
-//            }
-//            catch (IllegalArgumentException e) {
-//                throw new RuntimeException("Invalid value '" + str + "' for enum " + enumType.getSimpleName(), e);
-//            }
-//        }, Enum::name);
-//    }
+    static <T extends Enum<T>> Codec<T> enumCodec(Class<T> enumType) {
+        return Codec.STRING.xmap(str -> {
+            try {
+                return Enum.valueOf(enumType, str.toUpperCase());
+            }
+            catch (IllegalArgumentException e) {
+                throw new RuntimeException("Invalid value '" + str + "' for enum " + enumType.getSimpleName(), e);
+            }
+        }, Enum::name);
+    }
 //
 //    static Codec<AndNode> andCodec() {
 //        return RecordCodecBuilder.create(inst -> inst.group(

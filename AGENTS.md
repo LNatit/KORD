@@ -32,7 +32,7 @@ The conflict evaluation follows **8 sequential stages** (see `doc/PIPELINE_zh-cn
 **Execution Flow:**
 ```
 Stage 1: Physical Key Match 
-  → Stage 2: User Overrides [TODO]
+  → Stage 2: User Overrides
   → Stage 3: Context Overlap & Semantic Routing
   → Stage 4: State Mutex Analysis (evaluateStateMutex)
   → Stage 5: Input Interception (evaluateIntercept)
@@ -85,7 +85,7 @@ Input interception evaluation in `evaluateIntercept()`:
 - **Mutual interception**: Both intercept → `RACE_CONDITION` (SEVERE severity)
 - **Partial Override**: Interception exists AND state subset relationship means one binding always/never intercepts within the other's active states → `PARTIAL_OVERRIDE`, terminates evaluation with INFO/WARNING severity
 
-These are `RiskEntry<InterceptTag>` records, not mutable `DynamicRisk` instances.
+These are `RiskEntry<InterceptTag>` values, not a separate `DynamicRisk` class hierarchy.
 
 ### Resource Conflict Matrix
 Detected in `evaluateResource()`: overlapping resources trigger CONCURRENT_WRITE (severe) unless both read-only or protected by interception.
@@ -95,14 +95,15 @@ Detected in `evaluateResource()`: overlapping resources trigger CONCURRENT_WRITE
 ### JSON Configuration
 Keys and their semantics loaded from `key_semantics/**/*.json` at client reload:
 - Entry point: `KeySemanticManager` (extends `SimpleJsonResourceReloadListener`)
-- Parsed via: `com.lnatit.chord.data.Codecs.KEYS_CODEC`
+- Parsing status: `decodeDefinition()` is currently a placeholder and returns an error until codec wiring is completed
 - Applied to KeyMapping via Mixin-injected `SemanticalKey.chord$setSemantic()`
 
-**Four reload listeners** are registered in `Chord.java`:
-1. `MutexSetManager.INSTANCE` — loads mutex group definitions from `mutex_sets/**/*.json` (via `data/mutex/`)
-2. `ResourceReloadListener.INSTANCE` — loads resource concurrency definitions from `resources/**/*.json`
-3. `KeySemanticManager.INSTANCE` — loads key semantic definitions from `key_semantics/**/*.json`
-4. `DatapackOverrideReloader.INSTANCE` — loads conflict overrides from `builtin_overrides/**/*.json`
+**Five reload listeners** are registered in `Chord.java`:
+1. `ContextReloadListener.INSTANCE` — loads context definitions from `contexts/**/*.json` (via `data/context/`)
+2. `MutexSetManager.INSTANCE` — loads mutex group definitions from `mutex_sets/**/*.json` (via `data/mutex/`)
+3. `ResourceReloadListener.INSTANCE` — loads resource concurrency definitions from `resources/**/*.json`
+4. `KeySemanticManager.INSTANCE` — loads key semantic definitions from `key_semantics/**/*.json`
+5. `DatapackOverrideReloader.INSTANCE` — loads conflict overrides from `builtin_overrides/**/*.json`
 
 ### Mixin Integration
 - **Client mixin:** `client.MixinKeyMapping` - Extends KeyMapping with semantic storage
@@ -111,10 +112,11 @@ Keys and their semantics loaded from `key_semantics/**/*.json` at client reload:
 
 ### Result Types
 `com.lnatit.chord.result/` package defines conflict output:
-- `ConflictResult` - Final serializable result (also has `ConflictResult.SAFE` constant)
-- `ConflictRisk` - Interface; `ConflictRisk.Static` is the serializable implementation; `DynamicRisk` is the mutable subclass
-- `ConflictTag` - Static debug tags (HARDWARE_MISMATCH, STATE_MUTEX, etc.)
-- `DynamicRisk` - Mutable risks with severity escalation/downgrade logic; concrete subclasses: `StateSubset`, `InterceptInput`, `RaceCondition`, `ContextLeak`, `DeferredRisk`, `LoseFocus`, `InputBlock`
+- `ConflictResult` - Final result record: `ConflictResult(KeyPair, Finalized)`
+- `Finalized` - Display-facing risk container (`HARDWARE_INPUT`, `CONTEXT_MUTEX`, `Custom`, `Pipeline`, `Override`)
+- `ConflictRisk` - Base risk interface; composition helpers are `ConflictRisk.Mapped` and `ConflictRisk.Packed`
+- `RiskTag` + `RiskEntry<T extends RiskTag>` - Tag system and typed risk entries (`Immutable`, mutable `Simple`, `ContextPairs`)
+- `result/context/*Tag` enums - Per-stage tags (`StateTag`, `InterceptTag`, `RedirectTag`, `ResourceTag`, `IntentTag`, `ModalityTag`)
 - `Severity` enum - SAFE → INFO → WARNING → SEVERE
 
 ## Build & Run Commands
@@ -143,9 +145,10 @@ Keys and their semantics loaded from `key_semantics/**/*.json` at client reload:
 
 ```
 src/main/java/com/lnatit/chord/
-├── Chord.java                      # Mod entry point, registers 4 reload listeners
+├── Chord.java                      # Mod entry point, registers 5 reload listeners
 ├── eval/
 │   ├── Evaluator.java             # Core pipeline as interface with static methods (CRITICAL)
+│   ├── KeyPair.java               # Symmetric key-pair key used by overrides/results
 │   ├── Modality.java              # P/H/T mode evaluation matrix
 │   ├── RedirectMode.java          # Context transition evaluation matrix
 │   ├── context/                   # IKeyContext adapter layer
@@ -159,11 +162,15 @@ src/main/java/com/lnatit/chord/
 │   └── resource/                  # Resource concurrency properties
 ├── semantic/
 │   ├── ContextSemantic.java       # Record of 7 semantic dimensions; ContextSemantic.DEFAULT available
-│   ├── KeySemantic.java           # Key-level semantic container (AS_IS / Precise)
+│   ├── ConflictType.java          # Context overlap routing type (NEVER / SELF_ONLY / CUSTOM)
+│   ├── KeySemantic.java           # Key-level semantic container (Semantical / RawContext)
 │   ├── KeyContext.java            # Key context wrapper type for semantic maps
 │   └── SemanticalKey.java         # Interface injected onto KeyMapping via Mixin
 ├── data/
-│   ├── Codecs.java                # JsonCodec definitions (KEYS_CODEC, OVERRIDE_DEFINITION_CODEC, MUTEX_DEFINITIONS_CODEC, etc.)
+│   ├── Codecs.java                # Shared Gson/codec entry points (some decode wiring is still in progress)
+│   ├── context/
+│   │   ├── ContextReloadListener.java # Reload listener for contexts/**/*.json
+│   │   └── ContextDefinition.java     # Deserialized JSON structure
 │   ├── Requirement.java           # Mod-id + version-range requirement check for conditional entries
 │   ├── mutex/
 │   │   ├── MutexSetManager.java   # Reload listener for mutex_sets/**/*.json
@@ -171,14 +178,16 @@ src/main/java/com/lnatit/chord/
 │   │   └── MutexDefinition.java   # Deserialized JSON structure for mutex groups
 │   ├── semantic/
 │   │   ├── KeySemanticManager.java  # Reload listener for key_semantics/**/*.json
-│   │   └── KeyDefinitions.java      # Deserialized JSON structure
+│   │   └── KeyDefinition.java       # Deserialized JSON structure
 │   ├── resource/
 │   │   ├── ResourceReloadListener.java  # Reload listener for resources/**/*.json
 │   │   └── ResourceDefinition.java      # Deserialized JSON resource entry
 │   └── override/
 │       ├── DatapackOverrideReloader.java  # Reload listener for builtin_overrides/**/*.json
 │       └── OverrideDefinition.java        # Deserialized JSON override entry
-├── result/                        # Conflict result & risk types
+├── gui/                           # Key binding GUI entry points (currently scaffold)
+├── result/                        # Conflict result model, collectors, and per-stage tags
+│   └── context/                   # Per-context pipeline collector and tags
 ├── mixin/client/                  # Bytecode injection points
 └── util/                          # Matrix & collection utilities (AsymmetricEnumMatrix, Provider, Supplier)
 ```
@@ -189,9 +198,9 @@ src/main/java/com/lnatit/chord/
 1. Extend `ContextSemantic` record with new field
 2. Create evaluation method in `Evaluator` following the pattern of `evaluateStateMutex()`:
    - Query both semantics
-   - Populate collector with debug tags or dynamic risks
+   - Populate collector with typed `RiskEntry` values (diagnostic via `RiskEntry.diagnostic(...)` or mutable via `RiskEntry.Simple`)
    - Set finished() if this dimension alone determines outcome
-3. Update `Codecs.SEMANTIC_CODEC` so JSON datapacks can decode the new field
+3. Update the semantic decode path (codec wiring is currently in progress in `KeySemanticManager.decodeDefinition()`)
 4. Call new evaluator from `eval()` pipeline in correct ordering
 
 ### Matrix-Based Decision Logic
@@ -200,24 +209,27 @@ Several subsystems use 2D enum matrices (RedirectMode combinations, Modality com
 - Lookup: `RedirectMode.MATRIX.get(mode1, mode2)` returns `ConflictInfo`
 - See `Modality.java` for fully documented matrix with recovery cost rationale
 
-### Adding Dynamic Risks
-Create inner class in `DynamicRisk.java`:
+### Adding Mutable Risks
+Use mutable `RiskEntry.Simple<T extends RiskTag>` when later stages need to adjust severity:
 ```java
-public static class YourRisk extends DynamicRisk {
-    public void escalate() { ... }  // severity adjustment
-    public void downgrade() { ... }
-}
+RiskEntry.Simple<InterceptTag> risk = new RiskEntry.Simple<>(InterceptTag.INTERCEPT_INPUT);
+risk.setSeverity(Severity.WARNING);
 ```
-Use `collector.getRisk(YourRisk.class)` to check for and modify previous risks.
+Pattern example: `evaluateIntent()` downgrades an existing mutable intercept risk when intents are shared.
 
 ### Adding Override Entries (datapack)
-Create a JSON file under `src/main/resources/data/chord/builtin_overrides/` decoded via `Codecs.OVERRIDE_DEFINITION_CODEC`:
+Create a JSON file under `src/main/resources/data/chord/builtin_overrides/`:
 ```json
 { "is_builtin": true, "key1": { "name": "key.mod.action1" }, "key2": { "name": "key.mod.action2" }, "result": { "severity": "SAFE", "risks": [] } }
 ```
 - `is_builtin: true` → stored as `OverrideType.BUILTIN`; `false` → `OverrideType.CREATOR`
-- Pair lookup is order-independent (symmetric `equals`/`hashCode` in `OverrideManager.Pair`
+- Pair lookup is order-independent via canonicalized `KeyPair`
 - Priority order: USER > PLAYER > CREATOR > BUILTIN (see `OverrideManager.PRIORITY`)
+- Current status: `DatapackOverrideReloader.decodeDefinition()` is a placeholder and currently returns an error until codec wiring is completed.
+
+### Adding Context Definitions (datapack)
+Create a JSON file under `src/main/resources/data/chord/contexts/` for `ContextReloadListener`.
+- Current status: `ContextReloadListener.decodeDefinition()` is a placeholder and currently returns an error until codec wiring is completed.
 
 ### Adding Mutex State Groups (datapack)
 Create a JSON file under `src/main/resources/data/chord/mutex_sets/` decoded via `Codecs.MUTEX_DEFINITIONS_CODEC`:
@@ -260,9 +272,10 @@ When implementing new features:
 ## Common Pitfalls
 
 - **Stage Order Matters:** Never reorder evaluateXXX() calls - later stages depend on earlier risk state
-- **Immutability:** `ContextSemantic` is immutable; all runtime conflict adjustments go through `ConflictCollector`
+- **Immutability:** `ContextSemantic` is immutable; runtime conflict accumulation goes through collector types (`ContextCollector`, `Collector`)
 - **Context Overlap:** Use `isContextOverlapping()` before evaluating semantics - prevents false positives
 - **Resource Root Sentinel:** Use `Resource.ROOT` to represent no specific target; avoid nullable resource semantics
 - **State Subset Escalation:** Only escalates StateSubset risk if interception is present - track this coupling
 - **Evaluator is an interface:** Do not attempt to instantiate it; call static methods directly (`Evaluator.conflicts(...)`, `Evaluator.eval(...)`)
 - **Override cleared on reload:** `DatapackOverrideReloader` clears both `BUILTIN` and `CREATOR` types on each reload — user-level overrides (`USER`, `PLAYER`) must be repopulated separately
+- **Codec wiring status varies by loader:** `MutexSetManager` and `ResourceReloadListener` use codec-backed parsing, while context/key semantics/override listeners currently keep decode hooks as placeholders.

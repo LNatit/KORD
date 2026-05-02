@@ -5,6 +5,7 @@ import com.lnatit.chord.Chord;
 import com.lnatit.chord.data.Codecs;
 import com.lnatit.chord.semantic.KeyContext;
 import com.mojang.serialization.DataResult;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
@@ -27,9 +28,9 @@ public class ContextReloadListener extends SimpleJsonResourceReloadListener {
         int loaded = 0;
         for (Map.Entry<ResourceLocation, JsonElement> entry : map.entrySet()) {
             ResourceLocation id = entry.getKey();
-            JsonElement json = entry.getValue();
 
-            DataResult<ContextDefinition> result = decodeDefinition(json);
+            DataResult<ContextDefinition> result = Codecs.CONTEXT_DEFINITION_CODEC.parse(JsonOps.INSTANCE,
+                                                                                         entry.getValue());
             if (result.isError()) {
                 Chord.LOGGER.warn("Failed to parse context definition in '{}': {}", id, result.error().orElseThrow());
                 continue;
@@ -55,13 +56,5 @@ public class ContextReloadListener extends SimpleJsonResourceReloadListener {
 
         Chord.LOGGER.info("Loaded {} context definitions.", loaded);
         profiler.pop();
-    }
-
-    private static DataResult<ContextDefinition> decodeDefinition(JsonElement json) {
-        // Placeholder: ContextDefinition codec wiring is intentionally deferred.
-        if (json.isJsonNull()) {
-            return DataResult.error(() -> "ContextDefinition json is null.");
-        }
-        return DataResult.error(() -> "ContextDefinition codec is not wired yet.");
     }
 }

@@ -15,7 +15,7 @@ public interface Finalized extends ConflictRisk
     Finalized CONTEXT_MUTEX = Finalized.of(RiskTag.CONTEXT_MUTEX);
 
 
-    @java.lang.Override
+    @Override
     default boolean isHidden() {
         return false;
     }
@@ -28,7 +28,7 @@ public interface Finalized extends ConflictRisk
         return new Custom(new RiskEntry.ContextPairs(pairs));
     }
 
-    record Override(MutableComponent component, Severity severity, Origin origin) implements Finalized
+    record Overrid(MutableComponent component, Severity severity, Origin origin) implements Finalized
     {}
 
     record Custom(RiskEntry<?> holder) implements Finalized
@@ -38,7 +38,7 @@ public interface Finalized extends ConflictRisk
         @SuppressWarnings("all")
         public Custom {}
 
-        @java.lang.Override
+        @Override
         public Severity severity() {
             return this.holder.severity();
         }

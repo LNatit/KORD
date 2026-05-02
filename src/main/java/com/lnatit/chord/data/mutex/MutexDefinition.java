@@ -24,7 +24,7 @@ public record MutexDefinition(Optional<String> namespace, List<Requirement> requ
             Chord.LOGGER.warn("Mutex set has {} entries (max 32), ignored.", mutexes.size());
             return true;
         }
-        return !requirements.stream().allMatch(Requirement::isValid);
+        return requirements.stream().noneMatch(Requirement::isValid);
     }
 }
 

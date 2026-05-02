@@ -40,7 +40,7 @@ public record OverrideDefinition(
 
     public record Result(MutableComponent component, Severity severity) {
         public Finalized toFinalized(Origin origin) {
-            return new Finalized.Override(component, severity, origin);
+            return new Finalized.Overrid(component, severity, origin);
         }
     }
 }
