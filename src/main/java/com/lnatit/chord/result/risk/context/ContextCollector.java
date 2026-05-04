@@ -1,8 +1,8 @@
-package com.lnatit.chord.result.context;
+package com.lnatit.chord.result.risk.context;
 
-import com.lnatit.chord.result.Collector;
-import com.lnatit.chord.result.ConflictRisk;
-import com.lnatit.chord.result.RiskEntry;
+import com.lnatit.chord.result.risk.Collector;
+import com.lnatit.chord.result.risk.ConflictRisk;
+import com.lnatit.chord.result.risk.RiskEntry;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;

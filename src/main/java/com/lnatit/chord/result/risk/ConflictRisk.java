@@ -1,4 +1,4 @@
-package com.lnatit.chord.result;
+package com.lnatit.chord.result.risk;
 
 import java.util.Collection;
 import java.util.List;

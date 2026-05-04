@@ -38,6 +38,8 @@ public sealed interface KeySemantic permits KeySemantic.Semantical, KeySemantic.
      * through CONTEXT_DIRECT without needing a separate Unknown branch.
      */
     static RawContext fallback(IKeyConflictContext ctx) {
+        if (ctx == null)
+            return new RawContext(KeyContext.UNIVERSAL);
         KeyContext known = KeyContext.lookup(ctx);
         if (known != null) return new RawContext(known);
         return new RawContext(new KeyContext("unknown:" + ctx.getClass().getName(), ctx, ConflictType.CUSTOM));

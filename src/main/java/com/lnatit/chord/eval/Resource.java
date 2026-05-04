@@ -1,4 +1,4 @@
-package com.lnatit.chord.eval.resource;
+package com.lnatit.chord.eval;
 
 import org.jetbrains.annotations.ApiStatus;
 

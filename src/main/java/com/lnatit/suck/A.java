@@ -3,6 +3,7 @@ package com.lnatit.suck;
 import com.mojang.serialization.Decoder;
 import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.MouseHandler;
+import net.minecraft.client.gui.screens.options.controls.KeyBindsScreen;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
@@ -25,4 +26,5 @@ public class A
     ConditionContext cc;
     IModInfo.ModVersion mv;
     Decoder d;
+    KeyBindsScreen kbs;
 }

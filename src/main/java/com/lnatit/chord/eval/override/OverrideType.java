@@ -1,6 +1,6 @@
 package com.lnatit.chord.eval.override;
 
-import com.lnatit.chord.result.RiskTag;
+import com.lnatit.chord.result.risk.RiskTag;
 
 public enum OverrideType
 {

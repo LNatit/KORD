@@ -1,5 +1,6 @@
 package com.lnatit.chord.eval;
 
+import com.lnatit.chord.semantic.SemanticalKey;
 import net.minecraft.client.KeyMapping;
 
 import java.util.Objects;
@@ -11,44 +12,58 @@ import java.util.Objects;
  * the canonical ordering rule.
  */
 public final class KeyPair {
-    private final String leftId;
-    private final String rightId;
+    private final KeyMapping left;
+    private final KeyMapping right;
 
-    private KeyPair(String leftId, String rightId) {
-        this.leftId = leftId;
-        this.rightId = rightId;
+    private KeyPair(KeyMapping left, KeyMapping right) {
+        this.left = left;
+        this.right = right;
     }
 
     public static KeyPair of(KeyMapping key1, KeyMapping key2) {
-        String id1 = key1.getName();
-        String id2 = key2.getName();
-        return id1.compareTo(id2) <= 0 ? new KeyPair(id1, id2) : new KeyPair(id2, id1);
+        return ((SemanticalKey) key1).chord$compareTo(key2) <= 0 ? new KeyPair(key1, key2) : new KeyPair(key2, key1);
     }
 
+    public static KeyPair of(String id1, String id2) {
+        KeyMapping key1 = SemanticalKey.lookup(id1);
+        KeyMapping key2 = SemanticalKey.lookup(id2);
+        if (key1 == null || key2 == null) {
+            throw new IllegalArgumentException("Invalid key mapping IDs: " + id1 + ", " + id2);
+        }
+        return of(key1, key2);
+    }
+
+    public KeyMapping left() {
+        return left;
+    }
+
+    public KeyMapping right() {
+        return right;
+    }
 
     public String leftId() {
-        return leftId;
+        return left.getName();
     }
 
     public String rightId() {
-        return rightId;
+        return right.getName();
     }
 
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (!(obj instanceof KeyPair pair)) return false;
-        return Objects.equals(leftId, pair.leftId) && Objects.equals(rightId, pair.rightId);
+        return Objects.equals(left, pair.left) && Objects.equals(right, pair.right);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(leftId, rightId);
+        return Objects.hash(leftId(), rightId());
     }
 
     @Override
     public String toString() {
-        return "KeyPair[" + leftId + ", " + rightId + "]";
+        return "KeyPair[" + leftId() + ", " + rightId() + "]";
     }
 }
 

@@ -1,4 +1,4 @@
-package com.lnatit.chord.result;
+package com.lnatit.chord.result.risk;
 
 public enum Severity
 {

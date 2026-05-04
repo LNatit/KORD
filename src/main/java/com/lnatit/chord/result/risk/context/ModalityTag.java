@@ -1,6 +1,6 @@
-package com.lnatit.chord.result.context;
+package com.lnatit.chord.result.risk.context;
 
-import com.lnatit.chord.result.RiskTag;
+import com.lnatit.chord.result.risk.RiskTag;
 
 public enum ModalityTag implements RiskTag
 {

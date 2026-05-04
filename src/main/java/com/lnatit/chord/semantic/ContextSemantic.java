@@ -4,7 +4,7 @@ import com.lnatit.chord.eval.Modality;
 import com.lnatit.chord.eval.RedirectMode;
 import com.lnatit.chord.eval.intent.IntentList;
 import com.lnatit.chord.eval.mutex.StateSet;
-import com.lnatit.chord.eval.resource.Resource;
+import com.lnatit.chord.eval.Resource;
 
 public record ContextSemantic(StateSet states,
                               boolean intercept,

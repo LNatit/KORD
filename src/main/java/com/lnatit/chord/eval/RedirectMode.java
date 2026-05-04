@@ -1,9 +1,9 @@
 package com.lnatit.chord.eval;
 
-import com.lnatit.chord.result.RiskEntry;
-import com.lnatit.chord.result.Severity;
-import com.lnatit.chord.result.context.ContextCollector;
-import com.lnatit.chord.result.context.RedirectTag;
+import com.lnatit.chord.result.risk.RiskEntry;
+import com.lnatit.chord.result.risk.Severity;
+import com.lnatit.chord.result.risk.context.ContextCollector;
+import com.lnatit.chord.result.risk.context.RedirectTag;
 import com.lnatit.chord.util.AsymmetricEnumMatrix;
 import com.lnatit.chord.util.Provider;
 import com.lnatit.chord.util.Supplier;

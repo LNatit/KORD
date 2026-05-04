@@ -6,6 +6,6 @@ public enum ConflictType
     NEVER,
     /** Self-Limited: 仅与自身冲突，支持语义指定，进入语义流水线 */
     SELF_ONLY,
-    /** Global/Complex: 复杂或全局冲突条件，走原始 conflicts() 直判，不进语义流水线 */
+    /** Global/Complex: 复杂或全局冲突条件，走原始 evalStatic() 直判，不进语义流水线 */
     CUSTOM
 }

@@ -1,4 +1,4 @@
-package com.lnatit.chord.result;
+package com.lnatit.chord.result.risk;
 
 import com.lnatit.chord.eval.override.Origin;
 import com.lnatit.chord.semantic.KeyContext;
@@ -11,9 +11,7 @@ import java.util.Map;
 // Display Interface
 public interface Finalized extends ConflictRisk
 {
-    Finalized HARDWARE_INPUT = Finalized.of(RiskTag.HARDWARE_INPUT);
     Finalized CONTEXT_MUTEX = Finalized.of(RiskTag.CONTEXT_MUTEX);
-
 
     @Override
     default boolean isHidden() {

@@ -1,41 +1,32 @@
 package com.lnatit.chord.data.context;
 
-import com.google.gson.JsonElement;
 import com.lnatit.chord.Chord;
 import com.lnatit.chord.data.Codecs;
 import com.lnatit.chord.semantic.KeyContext;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.JsonOps;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.FileToIdConverter;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 
 import java.util.Map;
 
-public class ContextReloadListener extends SimpleJsonResourceReloadListener {
+public class ContextReloadListener extends SimpleJsonResourceReloadListener<ContextDefinition> {
     public static final ContextReloadListener INSTANCE = new ContextReloadListener();
 
     private ContextReloadListener() {
-        super(Codecs.GSON, "contexts");
+        super(Codecs.CONTEXT_DEFINITION_CODEC, FileToIdConverter.json("contexts"));
     }
 
     @Override
-    protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager resourceManager, ProfilerFiller profiler) {
+    protected void apply(Map<Identifier, ContextDefinition> map, ResourceManager resourceManager, ProfilerFiller profiler) {
         profiler.push("chord_contexts");
         KeyContext.init();
 
         int loaded = 0;
-        for (Map.Entry<ResourceLocation, JsonElement> entry : map.entrySet()) {
-            ResourceLocation id = entry.getKey();
-
-            DataResult<ContextDefinition> result = Codecs.CONTEXT_DEFINITION_CODEC.parse(JsonOps.INSTANCE,
-                                                                                         entry.getValue());
-            if (result.isError()) {
-                Chord.LOGGER.warn("Failed to parse context definition in '{}': {}", id, result.error().orElseThrow());
-                continue;
-            }
-            ContextDefinition definition = result.getOrThrow();
+        for (Map.Entry<Identifier, ContextDefinition> entry : map.entrySet()) {
+            Identifier id = entry.getKey();
+            ContextDefinition definition = entry.getValue();
 
             if (definition.isInvalid()) {
                 Chord.LOGGER.debug("Context definition in '{}' is invalid and will be ignored.", id);

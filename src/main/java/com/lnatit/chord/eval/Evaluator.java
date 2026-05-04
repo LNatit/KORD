@@ -3,14 +3,19 @@ package com.lnatit.chord.eval;
 import com.lnatit.chord.eval.intent.IntentList;
 import com.lnatit.chord.eval.mutex.StateSet;
 import com.lnatit.chord.eval.override.OverrideManager;
-import com.lnatit.chord.eval.resource.Resource;
 import com.lnatit.chord.result.*;
-import com.lnatit.chord.result.context.*;
+import com.lnatit.chord.result.risk.Collector;
+import com.lnatit.chord.result.risk.Finalized;
+import com.lnatit.chord.result.risk.RiskEntry;
+import com.lnatit.chord.result.risk.Severity;
+import com.lnatit.chord.result.risk.context.*;
 import com.lnatit.chord.semantic.ContextSemantic;
 import com.lnatit.chord.semantic.KeyContext;
 import com.lnatit.chord.semantic.KeySemantic;
 import com.lnatit.chord.semantic.SemanticalKey;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
+import net.neoforged.neoforge.client.settings.KeyModifier;
 
 import java.util.List;
 
@@ -19,16 +24,40 @@ public interface Evaluator
     /**
      * @see KeyMapping#same(KeyMapping)
      */
-    static ConflictResult conflicts(KeyMapping subject, KeyMapping opponent) {
-        KeyPair pair = KeyPair.of(subject, opponent);
-        boolean flag = pair.leftId().equals(subject.getName());
-        KeyMapping left = flag ? subject : opponent;
-        KeyMapping right = flag ? opponent : subject;
 
-        // Physical Context TODO maybe use a keyed lookup instead of iteration?
-        if (!isSameKey(left, right)) {
-            return new ConflictResult(pair, Finalized.HARDWARE_INPUT);
+
+
+
+
+    static DispatchBehaviour evalDynamic(KeyPair pair) {
+        InputConstants.Key leftKey = pair.left().getKey();
+        KeyModifier leftMod = pair.left().getKeyModifier();
+        InputConstants.Key rightKey = pair.right().getKey();
+        KeyModifier rightMod = pair.right().getKeyModifier();
+
+        SameType key = SameType.DISJOINT;
+        if (leftKey == rightKey) {
+            key = SameType.MAIN;
         }
+        else if (rightMod.matches(leftKey)) {
+            key = SameType.MODIFIER;
+        }
+        SameType mod = SameType.DISJOINT;
+        if (leftMod.matches(rightKey)) {
+            mod = SameType.MODIFIER;
+        }
+        else if (leftMod.equals(rightMod)) {
+            mod = SameType.MAIN;
+        }
+
+
+
+
+    }
+
+    static Finalized evalStatic(KeyPair pair) {
+        KeyMapping left = pair.left();
+        KeyMapping right = pair.right();
 
         // User override
         ConflictResult override = OverrideManager.getOverride(pair);
@@ -46,14 +75,14 @@ public interface Evaluator
                     .toList();
 
             if (overlapping.isEmpty()) {
-                return new ConflictResult(pair, Finalized.CONTEXT_MUTEX);
+                return Finalized.CONTEXT_MUTEX;
             }
 
             var collector = Collector.pipeline();
             for (var ctx : overlapping) {
-                collector.add(ctx, eval(leftMap.get(ctx), rightMap.get(ctx)).collect());
+                collector.add(ctx, evalContext(leftMap.get(ctx), rightMap.get(ctx)).collect());
             }
-            return new ConflictResult(pair, collector.collect());
+            return collector.collect();
         }
 
         var collector = Collector.context();
@@ -64,13 +93,11 @@ public interface Evaluator
                 }
             }
         }
-        return new ConflictResult(pair, collector.collect());
+        return collector.collect();
     }
 
     static boolean isSameKey(KeyMapping left, KeyMapping right) {
         return left.getKey().equals(right.getKey())
-               && left.getDefaultKeyModifier()
-                      .equals(right.getDefaultKeyModifier())
                && left.getKeyModifier().equals(right.getKeyModifier());
     }
 
@@ -79,7 +106,7 @@ public interface Evaluator
                                                                                       .conflicts(leftContext.context());
     }
 
-    static ContextCollector eval(ContextSemantic left, ContextSemantic right) {
+    static ContextCollector evalContext(ContextSemantic left, ContextSemantic right) {
         ContextCollector collector = new ContextCollector();
 
         if (evaluateStateMutex(left, right, collector)) {

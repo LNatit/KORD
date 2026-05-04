@@ -1,9 +1,9 @@
-package com.lnatit.chord.result.context;
+package com.lnatit.chord.result.risk.context;
 
 import com.lnatit.chord.eval.Modality;
-import com.lnatit.chord.result.RiskEntry;
-import com.lnatit.chord.result.RiskTag;
-import com.lnatit.chord.result.Severity;
+import com.lnatit.chord.result.risk.RiskEntry;
+import com.lnatit.chord.result.risk.RiskTag;
+import com.lnatit.chord.result.risk.Severity;
 
 public enum RedirectTag implements RiskTag
 {

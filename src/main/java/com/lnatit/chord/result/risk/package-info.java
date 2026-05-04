@@ -1,10 +1,7 @@
-/**
- * Since we are refactoring result package, override disabled for now
- */
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 @FieldsAreNonnullByDefault
-package com.lnatit.chord.eval.override;
+package com.lnatit.chord.result.risk;
 
 import com.mojang.logging.annotations.FieldsAreNonnullByDefault;
 import com.mojang.logging.annotations.MethodsReturnNonnullByDefault;

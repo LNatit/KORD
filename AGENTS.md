@@ -95,7 +95,8 @@ Detected in `evaluateResource()`: overlapping resources trigger CONCURRENT_WRITE
 ### JSON Configuration
 Keys and their semantics loaded from `key_semantics/**/*.json` at client reload:
 - Entry point: `KeySemanticManager` (extends `SimpleJsonResourceReloadListener`)
-- Parsing status: `decodeDefinition()` is currently a placeholder and returns an error until codec wiring is completed
+- Parsed via: `Codecs.KEY_DEFINITION_CODEC` (see `KeySemanticManager.decodeDefinition()`)
+- Semantic definition uses tagged dispatch fields: `semantic.kind` + `semantic.data` (`SEMANTICAL` / `RAW_CONTEXT`)
 - Applied to KeyMapping via Mixin-injected `SemanticalKey.chord$setSemantic()`
 
 **Five reload listeners** are registered in `Chord.java`:
@@ -167,7 +168,7 @@ src/main/java/com/lnatit/chord/
 │   ├── KeyContext.java            # Key context wrapper type for semantic maps
 │   └── SemanticalKey.java         # Interface injected onto KeyMapping via Mixin
 ├── data/
-│   ├── Codecs.java                # Shared Gson/codec entry points (some decode wiring is still in progress)
+│   ├── Codecs.java                # Shared Gson/codec entry points (DTO + semantic codecs, including dispatch-based union codecs)
 │   ├── context/
 │   │   ├── ContextReloadListener.java # Reload listener for contexts/**/*.json
 │   │   └── ContextDefinition.java     # Deserialized JSON structure
@@ -200,8 +201,9 @@ src/main/java/com/lnatit/chord/
    - Query both semantics
    - Populate collector with typed `RiskEntry` values (diagnostic via `RiskEntry.diagnostic(...)` or mutable via `RiskEntry.Simple`)
    - Set finished() if this dimension alone determines outcome
-3. Update the semantic decode path (codec wiring is currently in progress in `KeySemanticManager.decodeDefinition()`)
-4. Call new evaluator from `eval()` pipeline in correct ordering
+3. Update semantic codecs in `Codecs` (`SEMANTIC_CODEC`, semantic-definition dispatch codecs, and `KEY_DEFINITION_CODEC`) to include the new field
+4. Keep `KeySemanticManager.decodeDefinition()` aligned with the updated codec structure
+5. Call new evaluator from `eval()` pipeline in correct ordering
 
 ### Matrix-Based Decision Logic
 Several subsystems use 2D enum matrices (RedirectMode combinations, Modality combinations):
@@ -225,11 +227,11 @@ Create a JSON file under `src/main/resources/data/chord/builtin_overrides/`:
 - `is_builtin: true` → stored as `OverrideType.BUILTIN`; `false` → `OverrideType.CREATOR`
 - Pair lookup is order-independent via canonicalized `KeyPair`
 - Priority order: USER > PLAYER > CREATOR > BUILTIN (see `OverrideManager.PRIORITY`)
-- Current status: `DatapackOverrideReloader.decodeDefinition()` is a placeholder and currently returns an error until codec wiring is completed.
+- Parsed via `Codecs.OVERRIDE_DEFINITION_CODEC` in `DatapackOverrideReloader.decodeDefinition()`.
 
 ### Adding Context Definitions (datapack)
 Create a JSON file under `src/main/resources/data/chord/contexts/` for `ContextReloadListener`.
-- Current status: `ContextReloadListener.decodeDefinition()` is a placeholder and currently returns an error until codec wiring is completed.
+- Parsed via `Codecs.CONTEXT_DEFINITION_CODEC` in `ContextReloadListener.decodeDefinition()`.
 
 ### Adding Mutex State Groups (datapack)
 Create a JSON file under `src/main/resources/data/chord/mutex_sets/` decoded via `Codecs.MUTEX_DEFINITIONS_CODEC`:
@@ -278,4 +280,4 @@ When implementing new features:
 - **State Subset Escalation:** Only escalates StateSubset risk if interception is present - track this coupling
 - **Evaluator is an interface:** Do not attempt to instantiate it; call static methods directly (`Evaluator.conflicts(...)`, `Evaluator.eval(...)`)
 - **Override cleared on reload:** `DatapackOverrideReloader` clears both `BUILTIN` and `CREATOR` types on each reload — user-level overrides (`USER`, `PLAYER`) must be repopulated separately
-- **Codec wiring status varies by loader:** `MutexSetManager` and `ResourceReloadListener` use codec-backed parsing, while context/key semantics/override listeners currently keep decode hooks as placeholders.
+- **Codec/schema coupling:** all current reload listeners parse through `Codecs`; when changing JSON schema, update both codec definitions and the corresponding `decodeDefinition()` entry points together.

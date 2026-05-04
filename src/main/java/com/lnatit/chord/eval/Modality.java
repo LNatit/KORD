@@ -1,8 +1,8 @@
 package com.lnatit.chord.eval;
 
-import com.lnatit.chord.result.RiskEntry;
-import com.lnatit.chord.result.Severity;
-import com.lnatit.chord.result.context.ModalityTag;
+import com.lnatit.chord.result.risk.RiskEntry;
+import com.lnatit.chord.result.risk.Severity;
+import com.lnatit.chord.result.risk.context.ModalityTag;
 import com.lnatit.chord.util.AsymmetricEnumMatrix;
 
 /**

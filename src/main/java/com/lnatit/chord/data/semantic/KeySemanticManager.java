@@ -1,29 +1,27 @@
 package com.lnatit.chord.data.semantic;
 
-import com.google.gson.JsonElement;
 import com.lnatit.chord.Chord;
 import com.lnatit.chord.data.Codecs;
 import com.lnatit.chord.eval.intent.Intent;
 import com.lnatit.chord.semantic.SemanticalKey;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.JsonOps;
 import net.minecraft.client.KeyMapping;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.FileToIdConverter;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 
 import java.util.Map;
 
-public class KeySemanticManager extends SimpleJsonResourceReloadListener {
+public class KeySemanticManager extends SimpleJsonResourceReloadListener<KeyDefinition> {
     public static final KeySemanticManager INSTANCE = new KeySemanticManager();
 
     private KeySemanticManager() {
-        super(Codecs.GSON, "key_semantics");
+        super(Codecs.KEY_DEFINITION_CODEC, FileToIdConverter.json("key_semantics"));
     }
 
     @Override
-    protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager resourceManager, ProfilerFiller profiler) {
+    protected void apply(Map<Identifier, KeyDefinition> map, ResourceManager resourceManager, ProfilerFiller profiler) {
         profiler.push("chord_key_semantics");
 
         // Reset all keys to their mixin-provided fallback before datapack application.
@@ -31,15 +29,9 @@ public class KeySemanticManager extends SimpleJsonResourceReloadListener {
         int loaded = 0;
         Intent.beginDecode();
         try {
-            for (Map.Entry<ResourceLocation, JsonElement> entry : map.entrySet()) {
-                ResourceLocation id = entry.getKey();
-
-                DataResult<KeyDefinition> result = Codecs.KEY_DEFINITION_CODEC.parse(JsonOps.INSTANCE, entry.getValue());
-                if (result.isError()) {
-                    Chord.LOGGER.warn("Failed to parse key definition in '{}': {}", id, result.error().orElseThrow());
-                    continue;
-                }
-                KeyDefinition definition = result.getOrThrow();
+            for (Map.Entry<Identifier, KeyDefinition> entry : map.entrySet()) {
+                Identifier id = entry.getKey();
+                KeyDefinition definition = entry.getValue();
 
                 Chord.LOGGER.debug("Inspecting key definition in '{}'...", id);
                 if (!definition.checkValid()) {

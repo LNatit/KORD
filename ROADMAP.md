@@ -9,7 +9,7 @@ Pragmatic roadmap for the Chord keybinding conflict mod, aligned to current sour
 **Current Status:** The evaluator core is implemented (hardware check, overrides lookup, context routing, six semantic-stage context evaluation). The semantic model has already been refactored to `KeySemantic.Semantical` / `KeySemantic.RawContext` with collector-based risk accumulation (`RiskEntry`, `Finalized`, `ConflictRisk.Packed`).
 
 **Primary Gaps:**
-- Datapack decode wiring is still placeholder-based in context/key semantic/override reloaders.
+- Datapack decode path is wired, but sample datapacks and schema validation coverage are still missing.
 - No persisted user overrides (`USER`/`PLAYER`) yet.
 - UI is scaffold-only (`gui/KeyBindingScreen.java`).
 - No automated test suite (`src/test/java` absent).
@@ -58,16 +58,15 @@ Pragmatic roadmap for the Chord keybinding conflict mod, aligned to current sour
 
 ### Partially Implemented / Blocked
 
-1. **Datapack Decode Wiring**
-   - Placeholder decode functions still return error:
-     - `ContextReloadListener.decodeDefinition(...)`
-     - `KeySemanticManager.decodeDefinition(...)`
-     - `DatapackOverrideReloader.decodeDefinition(...)`
+1. **Datapack Runtime Validation & Fixtures**
+   - `ContextReloadListener.decodeDefinition(...)`, `KeySemanticManager.decodeDefinition(...)`, and
+     `DatapackOverrideReloader.decodeDefinition(...)` are now wired to `Codecs`.
+   - Remaining gaps are fixture coverage and schema regression checks for real datapack inputs.
 
 2. **Intent Dimension**
    - `Intent` has decode-stage cache (`beginDecode`/`endDecode`) and `Intent.of(...)` intern-like behavior during decode.
    - `IntentList.hasShared(...)` and `IntentList.isIdentical(...)` are implemented.
-   - Practical impact remains limited until semantic datapack decode is wired.
+   - Practical impact now depends on real semantic datapack coverage (not decode wiring).
 
 3. **UI Layer**
    - Only scaffold exists: `src/main/java/com/lnatit/chord/gui/KeyBindingScreen.java`.
@@ -96,10 +95,10 @@ The following outdated references were removed from planning assumptions:
   - Lacks tests and edge-case verification for state/resource logic.
 - **Phase 2 - Intent:** Partially complete
   - Matching helpers exist.
-  - Still blocked by semantic decode pipeline.
+  - Decode pipeline exists; lacking fixture-driven validation and behavior tests.
 - **Phase 3 - Override & User Config:** Partially complete
   - In-memory priority map exists.
-  - Missing persisted `USER`/`PLAYER` storage and active datapack decode for builtin entries.
+  - Missing persisted `USER`/`PLAYER` storage.
 - **Phase 4 - Runtime Event Integration:** Partially complete
   - Reload hook exists.
   - No periodic/runtime conflict scan hooks.
@@ -128,16 +127,17 @@ The following outdated references were removed from planning assumptions:
 
 ### Phase 2: Finish Datapack Decode Wiring (Priority: Critical)
 
-**Goal:** Turn currently blocked data pipeline into working runtime configuration.
+**Goal:** Stabilize the now-wired data pipeline with fixtures and validation.
 
-- [ ] Implement `ContextReloadListener.decodeDefinition(...)`.
-- [ ] Implement `KeySemanticManager.decodeDefinition(...)`.
-- [ ] Implement `DatapackOverrideReloader.decodeDefinition(...)`.
-- [ ] Reconcile `Codecs` declarations with active loader usage.
+- [x] Implement `ContextReloadListener.decodeDefinition(...)`.
+- [x] Implement `KeySemanticManager.decodeDefinition(...)`.
+- [x] Implement `DatapackOverrideReloader.decodeDefinition(...)`.
+- [x] Reconcile `Codecs` declarations with active loader usage.
 - [ ] Add at least one valid sample for each data source:
   - `data/chord/contexts/*.json`
   - `data/chord/key_semantics/*.json`
   - `data/chord/builtin_overrides/*.json`
+- [ ] Add failure-case fixtures (bad context id / bad tree node / invalid semantic kind) to lock schema behavior.
 
 **Deliverable:** datapack-based semantic and override data can be loaded end-to-end.
 
@@ -216,9 +216,10 @@ The following outdated references were removed from planning assumptions:
 
 ## Immediate Next Actions (Recommended)
 
-1. Implement three placeholder decode methods and add minimal JSON fixtures.
+1. Add minimal working fixtures for `contexts`, `key_semantics`, and `builtin_overrides` under `src/main/resources/data/chord/`.
 2. Add first evaluator regression tests (state/intercept/resource focus).
 3. Introduce `UserOverrideManager` contract and persistence format.
+4. Start GUI only as a thin prototype after (1) and (2), to avoid building UI on unverified data behavior.
 
 ---
 

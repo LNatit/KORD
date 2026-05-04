@@ -1,23 +1,21 @@
 package com.lnatit.chord.data.resource;
 
-import com.google.gson.JsonElement;
 import com.lnatit.chord.Chord;
 import com.lnatit.chord.data.Codecs;
-import com.lnatit.chord.eval.resource.Resource;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.JsonOps;
-import net.minecraft.resources.ResourceLocation;
+import com.lnatit.chord.eval.Resource;
+import net.minecraft.resources.FileToIdConverter;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 
 import java.util.Map;
 
-public class ResourceReloadListener extends SimpleJsonResourceReloadListener {
+public class ResourceReloadListener extends SimpleJsonResourceReloadListener<ResourceDefinition> {
     public static final ResourceReloadListener INSTANCE = new ResourceReloadListener();
 
     public ResourceReloadListener() {
-        super(Codecs.GSON, "resources");
+        super(Codecs.RESOURCE_DEFINITION_CODEC, FileToIdConverter.json("resources"));
     }
 
     private static boolean isPathInvalid(String path) {
@@ -28,22 +26,17 @@ public class ResourceReloadListener extends SimpleJsonResourceReloadListener {
     }
 
     @Override
-    protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager resourceManager, ProfilerFiller profiler) {
+    protected void apply(Map<Identifier, ResourceDefinition> map, ResourceManager resourceManager, ProfilerFiller profiler) {
         profiler.push("chord_resources");
 
         Resource.clear();
         int loaded = 0;
         int merged = 0;
 
-        for (Map.Entry<ResourceLocation, JsonElement> entry : map.entrySet()) {
-            ResourceLocation id = entry.getKey();
-            DataResult<ResourceDefinition> result = Codecs.RESOURCE_DEFINITION_CODEC.parse(JsonOps.INSTANCE, entry.getValue());
-            if (result.isError()) {
-                Chord.LOGGER.warn("Failed to parse resource definition in '{}': {}", id, result.error().orElseThrow());
-                continue;
-            }
+        for (Map.Entry<Identifier, ResourceDefinition> entry : map.entrySet()) {
+            Identifier id = entry.getKey();
+            ResourceDefinition definition = entry.getValue();
 
-            ResourceDefinition definition = result.getOrThrow();
             if (definition.isInvalid()) {
                 Chord.LOGGER.debug("Resource definition '{}' does not met the requirement, ignored.", id);
                 continue;
@@ -74,7 +67,7 @@ public class ResourceReloadListener extends SimpleJsonResourceReloadListener {
     }
 
     // TODO check path
-    private static String fallbackPath(ResourceLocation id) {
+    private static String fallbackPath(Identifier id) {
         String path = id.getPath();
         return path.startsWith("resources/") ? path.substring("resources/".length()) : path;
     }
