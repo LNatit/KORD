@@ -2,7 +2,7 @@ package com.lnatit.chord.data.override;
 
 import com.lnatit.chord.data.Requirement;
 import com.lnatit.chord.eval.KeyPair;
-import com.lnatit.chord.eval.override.Origin;
+import com.lnatit.chord.override.Origin;
 import com.lnatit.chord.result.risk.Finalized;
 import com.lnatit.chord.result.risk.Severity;
 import net.minecraft.client.KeyMapping;

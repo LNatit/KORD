@@ -1,4 +1,4 @@
-package com.lnatit.chord.eval.override;
+package com.lnatit.chord.override;
 
 import com.lnatit.chord.eval.KeyPair;
 import com.lnatit.chord.result.ConflictResult;

@@ -1,6 +1,6 @@
 package com.lnatit.chord.result.risk;
 
-import com.lnatit.chord.eval.override.Origin;
+import com.lnatit.chord.override.Origin;
 import com.lnatit.chord.semantic.KeyContext;
 import net.minecraft.network.chat.MutableComponent;
 import org.jetbrains.annotations.ApiStatus;
@@ -26,6 +26,7 @@ public interface Finalized extends ConflictRisk
         return new Custom(new RiskEntry.ContextPairs(pairs));
     }
 
+    // TODO lift to ConflictResult level
     record Overrid(MutableComponent component, Severity severity, Origin origin) implements Finalized
     {}
 

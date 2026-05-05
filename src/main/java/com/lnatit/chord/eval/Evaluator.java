@@ -2,7 +2,6 @@ package com.lnatit.chord.eval;
 
 import com.lnatit.chord.eval.intent.IntentList;
 import com.lnatit.chord.eval.mutex.StateSet;
-import com.lnatit.chord.eval.override.OverrideManager;
 import com.lnatit.chord.result.*;
 import com.lnatit.chord.result.risk.Collector;
 import com.lnatit.chord.result.risk.Finalized;
@@ -21,15 +20,7 @@ import java.util.List;
 
 public interface Evaluator
 {
-    /**
-     * @see KeyMapping#same(KeyMapping)
-     */
-
-
-
-
-
-    static DispatchBehaviour evalDynamic(KeyPair pair) {
+    static Scene evalDynamic(KeyPair pair) {
         InputConstants.Key leftKey = pair.left().getKey();
         KeyModifier leftMod = pair.left().getKeyModifier();
         InputConstants.Key rightKey = pair.right().getKey();
@@ -46,27 +37,16 @@ public interface Evaluator
         if (leftMod.matches(rightKey)) {
             mod = SameType.MODIFIER;
         }
-        else if (leftMod.equals(rightMod)) {
+        else if (leftMod == rightMod) {
             mod = SameType.MAIN;
         }
 
-
-
-
+        return SameType.toScene(key, mod);
     }
 
     static Finalized evalStatic(KeyPair pair) {
-        KeyMapping left = pair.left();
-        KeyMapping right = pair.right();
-
-        // User override
-        ConflictResult override = OverrideManager.getOverride(pair);
-        if (override != null) {
-            return override;
-        }
-
-        KeySemantic leftSemantic = ((SemanticalKey) left).chord$getSemantic();
-        KeySemantic rightSemantic = ((SemanticalKey) right).chord$getSemantic();
+        KeySemantic leftSemantic = ((SemanticalKey) pair.left()).chord$getSemantic();
+        KeySemantic rightSemantic = ((SemanticalKey) pair.right()).chord$getSemantic();
 
         if (leftSemantic instanceof KeySemantic.Semantical(var leftMap)
             && rightSemantic instanceof KeySemantic.Semantical(var rightMap)) {
