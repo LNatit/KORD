@@ -7,7 +7,7 @@
 
 ## 一、重构前置约定（本轮新增）
 
-1. 进入冲突判定前，先调用 `SemanticalKey::chord$compareTo` 做按键规范化排序：
+1. 进入冲突判定前，先调用 `SemanticalKey::kord$compareTo` 做按键规范化排序：
    - 若 `left > right`，交换为 `left <= right`。
    - 后续所有阶段与局部变量统一使用 `left/right`，不再使用 `subject/opponent` 作为主语义名。
 2. 旧 `DynamicRisk` 的“动态严重度变化”由 `RiskEntry.Simple<T>` 承接。

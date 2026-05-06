@@ -115,7 +115,7 @@ Resource 系统分两个层次定义，彼此独立：
 
 ---
 
-## 6. 与 Chord 流水线的对齐
+## 6. 与 Kord 流水线的对齐
 
 1. 当前实现通过 `sRes == oRes` 与 `Resource.getLCA(...)` 区分 SAME / ANCESTOR_DESCENDANT / 其他关系；兄弟与不相交统一落为 `RESOURCE_MUTEX`。
 2. `Evaluator.evaluateResource(...)` 的严重度分级沿用：
