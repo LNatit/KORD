@@ -1,8 +1,6 @@
 package com.lnatit.kord.result.risk;
 
-import com.lnatit.kord.override.Origin;
 import com.lnatit.kord.semantic.KeyContext;
-import net.minecraft.network.chat.MutableComponent;
 import org.jetbrains.annotations.ApiStatus;
 
 import java.util.List;
@@ -25,10 +23,6 @@ public interface Finalized extends ConflictRisk
     static Finalized ofPairs(List<KeyContext.Pair> pairs) {
         return new Custom(new RiskEntry.ContextPairs(pairs));
     }
-
-    // TODO lift to ConflictResult level
-    record Overrid(MutableComponent component, Severity severity, Origin origin) implements Finalized
-    {}
 
     record Custom(RiskEntry<?> holder) implements Finalized
     {

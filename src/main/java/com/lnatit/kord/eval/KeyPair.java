@@ -2,6 +2,7 @@ package com.lnatit.kord.eval;
 
 import com.lnatit.kord.semantic.SemanticalKey;
 import net.minecraft.client.KeyMapping;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -24,11 +25,12 @@ public final class KeyPair {
         return ((SemanticalKey) key1).kord$compareTo(key2) <= 0 ? new KeyPair(key1, key2) : new KeyPair(key2, key1);
     }
 
+    @Nullable
     public static KeyPair of(String id1, String id2) {
         KeyMapping key1 = SemanticalKey.lookup(id1);
         KeyMapping key2 = SemanticalKey.lookup(id2);
         if (key1 == null || key2 == null) {
-            throw new IllegalArgumentException("Invalid key mapping IDs: " + id1 + ", " + id2);
+            return null;
         }
         return of(key1, key2);
     }

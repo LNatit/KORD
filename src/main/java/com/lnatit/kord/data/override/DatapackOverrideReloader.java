@@ -6,7 +6,6 @@ import com.lnatit.kord.eval.KeyPair;
 import com.lnatit.kord.override.OverrideManager;
 import com.lnatit.kord.override.OverrideType;
 import com.lnatit.kord.result.ConflictResult;
-import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -46,25 +45,17 @@ public class DatapackOverrideReloader extends SimpleJsonResourceReloadListener<O
             OverrideType type = definition.isBuiltin() ? OverrideType.BUILTIN : OverrideType.CREATOR;
             KeyPair pair = definition.getPair();
             if (pair == null) {
-                Kord.LOGGER.warn(
-                        "Override '{}' references unknown key(s): key1='{}', key2='{}', ignored.",
-                        id,
-                        definition.key1().name(),
-                        definition.key2().name());
+                Kord.LOGGER.warn("Override '{}' references unknown key(s): key1='{}', key2='{}', ignored.",
+                                 id,
+                                 definition.key1().name(),
+                                 definition.key2().name());
                 continue;
             }
 
-            KeyMapping left = KeyMapping.ALL.get(pair.leftId());
-            KeyMapping right = KeyMapping.ALL.get(pair.rightId());
-            if (left == null || right == null) {
-                Kord.LOGGER.warn(
-                        "Override '{}' references stale key mapping(s): pair='{}', ignored.",
-                        id,
-                        pair);
-                continue;
-            }
-
-            ConflictResult overrideResult = new ConflictResult(left, right, definition.result().toFinalized(type.toOrigin()));
+            ConflictResult overrideResult = new ConflictResult.Overridden(pair,
+                                                                          definition.component(),
+                                                                          definition.severity(),
+                                                                          type.toOrigin());
             OverrideManager.put(type, pair, overrideResult);
             loaded++;
         }

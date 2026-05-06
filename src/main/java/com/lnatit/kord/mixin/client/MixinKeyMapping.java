@@ -1,10 +1,12 @@
 package com.lnatit.kord.mixin.client;
 
 import com.lnatit.kord.Kord;
+import com.lnatit.kord.eval.Modality;
 import com.lnatit.kord.semantic.KeySemantic;
 import com.lnatit.kord.semantic.SemanticalKey;
 import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.IKeyConflictContext;
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -31,6 +33,7 @@ public abstract class MixinKeyMapping implements SemanticalKey
     private KeySemantic kord$semantic = this.kord$fallback;
 
     @Redirect(method = {"<init>(Ljava/lang/String;Lcom/mojang/blaze3d/platform/InputConstants$Type;ILnet/minecraft/client/KeyMapping$Category;I)V", "<init>(Ljava/lang/String;Lnet/neoforged/neoforge/client/settings/IKeyConflictContext;Lnet/neoforged/neoforge/client/settings/KeyModifier;Lcom/mojang/blaze3d/platform/InputConstants$Key;Lnet/minecraft/client/KeyMapping$Category;)V"}, at = @At(value = "INVOKE", target = "Ljava/util/Map;put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"))
+    @Nullable
     private static <K, V> V kord$checkDuplication(Map<K, V> instance, K k, V v) {
         if (instance.containsKey(k)) {
             Kord.LOGGER.warn("Duplicate key registry detected! This may affect Kord system!");
@@ -41,6 +44,15 @@ public abstract class MixinKeyMapping implements SemanticalKey
     @Override
     public KeySemantic kord$getSemantic() {
         return this.kord$semantic;
+    }
+
+    @Override
+    public boolean kord$isHoldModal() {
+        return switch (this.kord$semantic) {
+            case KeySemantic.RawContext ignored -> false;
+            case KeySemantic.Semantical semantical ->
+                    semantical.semanticMap().values().stream().anyMatch(s -> s.modality() == Modality.HOLD);
+        };
     }
 
     @Override

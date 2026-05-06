@@ -19,8 +19,7 @@ import java.util.function.Predicate;
 
 public class Backend
 {
-    public static final Map<KeyPair, Finalized> STATIC_CACHE = new HashMap<>();
-
+    private static final Map<KeyPair, Finalized> STATIC_CACHE = new HashMap<>();
     private static final List<ConflictResult> ACTIVE_RESULTS = new ArrayList<>();
 
     public static ConflictResult getResult(KeyMapping subject, KeyMapping opponent) {
@@ -31,7 +30,7 @@ public class Backend
         }
         Scene scene = getSceneOf(pair);
         Finalized risk = getFinalizedOf(pair);
-        return new ConflictResult(pair, scene, risk);
+        return new ConflictResult.Evaluated(pair, scene, risk);
     }
 
     public static Scene getSceneOf(KeyPair pair) {
@@ -84,7 +83,7 @@ public class Backend
     public static Predicate<ConflictResult> bySeverity(Severity... severities) {
         return result -> {
             for (Severity severity : severities) {
-                if (result.risk().severity() == severity) return true;
+                if (result.severity() == severity) return true;
             }
             return false;
         };

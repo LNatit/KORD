@@ -13,7 +13,6 @@ import com.lnatit.kord.semantic.KeyContext;
 import com.lnatit.kord.semantic.KeySemantic;
 import com.lnatit.kord.semantic.SemanticalKey;
 import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraft.client.KeyMapping;
 import net.neoforged.neoforge.client.settings.KeyModifier;
 
 import java.util.List;
@@ -74,11 +73,6 @@ public interface Evaluator
             }
         }
         return collector.collect();
-    }
-
-    static boolean isSameKey(KeyMapping left, KeyMapping right) {
-        return left.getKey().equals(right.getKey())
-               && left.getKeyModifier().equals(right.getKeyModifier());
     }
 
     static boolean isContextOverlapping(KeyContext leftContext, KeyContext rightContext) {

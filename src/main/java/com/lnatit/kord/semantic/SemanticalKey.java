@@ -8,6 +8,8 @@ public interface SemanticalKey
 {
     KeySemantic kord$getSemantic();
 
+    boolean kord$isHoldModal();
+
     void kord$setSemantic(KeySemantic semantic);
 
     void kord$resetSemantic();

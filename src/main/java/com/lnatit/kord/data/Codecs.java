@@ -74,16 +74,12 @@ public interface Codecs
             Codec.STRING.fieldOf("name").forGetter(OverrideDefinition.Key::name)
     ).apply(inst, OverrideDefinition.Key::new));
 
-    Codec<OverrideDefinition.Result> OVERRIDE_RESULT_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-            TEXT_COMPONENT_CODEC.fieldOf("component").forGetter(OverrideDefinition.Result::component),
-            SEVERITY_CODEC.fieldOf("severity").forGetter(OverrideDefinition.Result::severity)
-    ).apply(inst, OverrideDefinition.Result::new));
-
     Codec<OverrideDefinition> OVERRIDE_DEFINITION_CODEC = RecordCodecBuilder.create(inst -> inst.group(
             OPTIONAL_BOOL_CODEC.fieldOf("is_builtin").forGetter(OverrideDefinition::isBuiltin),
             OVERRIDE_KEY_CODEC.fieldOf("key1").forGetter(OverrideDefinition::key1),
             OVERRIDE_KEY_CODEC.fieldOf("key2").forGetter(OverrideDefinition::key2),
-            OVERRIDE_RESULT_CODEC.fieldOf("result").forGetter(OverrideDefinition::result)
+            TEXT_COMPONENT_CODEC.fieldOf("component").forGetter(OverrideDefinition::component),
+            SEVERITY_CODEC.fieldOf("severity").forGetter(OverrideDefinition::severity)
     ).apply(inst, OverrideDefinition::new));
 
     Codec<LeafNode> LEAF_CODEC = RecordCodecBuilder.create(inst -> inst.group(
