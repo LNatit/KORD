@@ -6,6 +6,7 @@ import com.lnatit.kord.result.ConflictResult;
 import com.lnatit.kord.result.risk.Severity;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -291,16 +292,17 @@ public class KeyDiag extends Screen
                     }
 
                     int textY = rowY + (rowH - 9) / 2;
-                    KeyDiag.drawScrollingText(
+                    KeyDiag.drawMouseCtrledScrollingText(
                             graphics,
                             KeyDiag.this.font,
                             this.keyMapping.getDisplayName(),
-                            rowX + TEXT_PAD,
+                            rowX,
                             rowY,
-                            bindBtnX - TEXT_PAD,
+                            bindBtnX,
                             rowY + rowH,
-                            0xFFEEEEEE,
-                            hovered
+                            mouseX,
+                            mouseY,
+                            0xFFEEEEEE
                     );
                     graphics.centeredText(KeyDiag.this.font,
                                           this.keyMapping.getTranslatedKeyMessage(),
@@ -548,7 +550,7 @@ public class KeyDiag extends Screen
      */
     private static void drawScrollingText(
             GuiGraphicsExtractor graphics,
-            net.minecraft.client.gui.Font font,
+            Font font,
             Component text,
             int x1, int y1, int x2, int y2,
             int color,
@@ -582,6 +584,52 @@ public class KeyDiag extends Screen
 
         graphics.enableScissor(x1, y1, x2, y2);
         graphics.text(font, text, x1 - offset, textY, color);
+        graphics.disableScissor();
+    }
+    
+    private static void drawMouseCtrledScrollingText(
+            GuiGraphicsExtractor graphics,
+            Font font,
+            Component text,
+            int x1, int y1, int x2, int y2,
+            int mouseX, int mouseY,
+            int color
+    ) {
+        int outerW = Math.max(0, x2 - x1);
+        int innerX1 = x1 + TEXT_PAD;
+        int innerX2 = x2 - TEXT_PAD;
+        int innerW = Math.max(0, innerX2 - innerX1);
+        if (innerW == 0) {
+            return;
+        }
+
+        int textW = font.width(text);
+        int textY = y1 + (y2 - y1 - 9) / 2;
+
+        // Fits in the available area: draw centered text in the inset region.
+        if (textW <= innerW) {
+            graphics.centeredText(font, text, innerX1 + innerW / 2, textY, color);
+            return;
+        }
+
+        int scrollRange = textW - innerW;
+        double ratio = Math.clamp((double) innerW / (double) textW, 0.0, 1.0);
+
+        // 0..80% of the outer width depending on how much text overflows.
+        int responseW = (int) Math.round(outerW * 0.8 * (1.0 - ratio));
+
+        int offset = 0;
+        boolean mouseInside = mouseX >= x1 && mouseX < x2 && mouseY >= y1 && mouseY < y2;
+        if (mouseInside && responseW > 1) {
+            int responseX1 = x1 + (outerW - responseW) / 2;
+            int responseX2 = responseX1 + responseW;
+            double t = Math.clamp((mouseX - responseX1) / (double) (responseX2 - responseX1), 0.0, 1.0);
+            t = 1 - t;
+            offset = (int) Math.round(scrollRange * t);
+        }
+
+        graphics.enableScissor(innerX1, y1, innerX2, y2);
+        graphics.text(font, text, innerX1 - offset, textY, color);
         graphics.disableScissor();
     }
 
