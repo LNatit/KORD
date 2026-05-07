@@ -1,5 +1,6 @@
 package com.lnatit.kord.gui;
 
+import com.lnatit.kord.gui.front.KeyBindingSelectionListWidget;
 import com.lnatit.kord.result.risk.Severity;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -10,6 +11,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.network.chat.Component;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -54,10 +56,8 @@ public class KeyBindingScreen extends Screen {
     private int detailH;
     private int actionY;
 
-    private List<MockKeyBinding> keyBindings = List.of();
     private List<MockConflict> conflicts = List.of();
 
-    private int selectedKeyIndex = -1;
     private int selectedConflictIndex = -1;
     private final boolean[] filterActive = {true, true, true};
 
@@ -69,6 +69,7 @@ public class KeyBindingScreen extends Screen {
      * Kept so filter toggles can clamp its scroll offset.
      */
     private ConflictListWidget conflictListWidget;
+    private @Nullable KeyBindingSelectionListWidget keyBindingListWidget;
 
     public KeyBindingScreen() {
         super(Component.empty());
@@ -76,7 +77,6 @@ public class KeyBindingScreen extends Screen {
 
     @Override
     protected void init() {
-        this.keyBindings = getMockKeyBindings();
         this.conflicts = getMockConflicts();
         this.excludeMenuTarget = -1;
 
@@ -115,9 +115,18 @@ public class KeyBindingScreen extends Screen {
             addRenderableWidget(tool);
         }
 
-        addRenderableWidget(new KeyBindingListWidget(
-                centerX + PAD, PAD,
-                centerW - PAD * 2, height - PAD * 2));
+        this.keyBindingListWidget = new KeyBindingSelectionListWidget(
+                minecraft,
+                font,
+                centerX + PAD,
+                PAD,
+                centerW - PAD * 2,
+                height - PAD * 2,
+                this::onKeySelected,
+                this::onBindingLeftClick,
+                this::onBindingRightClick
+        );
+        addRenderableWidget(this.keyBindingListWidget);
 
         int toggleW = (rightW - PAD * 2) / 3;
         String[] filterLabels = {"严重", "警告", "轻微"};
@@ -220,9 +229,20 @@ public class KeyBindingScreen extends Screen {
                 }
             }
             excludeMenuTarget = -1;
+            this.clearSelectedKeyIfClickedElsewhere(event);
             return true;
         }
+
+        this.clearSelectedKeyIfClickedElsewhere(event);
         return super.mouseClicked(event, doubleClick);
+    }
+
+    private void clearSelectedKeyIfClickedElsewhere(MouseButtonEvent event) {
+        if (this.keyBindingListWidget != null
+                && this.keyBindingListWidget.getSelectedIndex() >= 0
+                && !this.keyBindingListWidget.isMouseOver(event.x(), event.y())) {
+            this.keyBindingListWidget.clearSelection();
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -369,56 +389,6 @@ public class KeyBindingScreen extends Screen {
     // Mock data (expanded for scroll testing)
     // -------------------------------------------------------------------------
 
-    protected List<MockKeyBinding> getMockKeyBindings() {
-        return List.of(
-                // Movement
-                new MockKeyBinding("前进", "W", Severity.SEVERE),
-                new MockKeyBinding("后退", "S", Severity.SAFE),
-                new MockKeyBinding("左移", "A", Severity.WARNING),
-                new MockKeyBinding("右移", "D", Severity.SAFE),
-                new MockKeyBinding("跳跃", "空格", Severity.INFO),
-                new MockKeyBinding("潜行", "Shift", Severity.SAFE),
-                new MockKeyBinding("疾跑", "Ctrl", Severity.WARNING),
-                // Combat
-                new MockKeyBinding("攻击", "鼠标左键", Severity.SAFE),
-                new MockKeyBinding("使用", "鼠标右键", Severity.SEVERE),
-                new MockKeyBinding("副手使用", "F", Severity.WARNING),
-                new MockKeyBinding("选取方块", "鼠标中键", Severity.SAFE),
-                new MockKeyBinding("格挡", "鼠标右键", Severity.SEVERE),
-                // Inventory / UI
-                new MockKeyBinding("物品栏", "E", Severity.SAFE),
-                new MockKeyBinding("丢弃单个", "Q", Severity.INFO),
-                new MockKeyBinding("丢弃全部", "Ctrl+Q", Severity.WARNING),
-                new MockKeyBinding("快捷栏1", "1", Severity.SAFE),
-                new MockKeyBinding("快捷栏2", "2", Severity.SAFE),
-                new MockKeyBinding("快捷栏3", "3", Severity.SAFE),
-                new MockKeyBinding("快捷栏4", "4", Severity.SAFE),
-                new MockKeyBinding("快捷栏5", "5", Severity.SAFE),
-                new MockKeyBinding("快捷栏6", "6", Severity.INFO),
-                new MockKeyBinding("快捷栏7", "7", Severity.SAFE),
-                new MockKeyBinding("快捷栏8", "8", Severity.SAFE),
-                new MockKeyBinding("快捷栏9", "9", Severity.SAFE),
-                // View / misc
-                new MockKeyBinding("切换视角", "F5", Severity.SAFE),
-                new MockKeyBinding("截图", "F2", Severity.SAFE),
-                new MockKeyBinding("平滑摄像机", "滚轮", Severity.INFO),
-                new MockKeyBinding("地图放大", "=", Severity.SAFE),
-                new MockKeyBinding("地图缩小", "-", Severity.SAFE),
-                new MockKeyBinding("全屏", "F11", Severity.SAFE),
-                new MockKeyBinding("聊天", "T", Severity.INFO),
-                new MockKeyBinding("命令", "/", Severity.SAFE),
-                new MockKeyBinding("列出玩家", "Tab", Severity.WARNING),
-                new MockKeyBinding("调试信息", "F3", Severity.SAFE),
-                new MockKeyBinding("高级调试", "F3+Alt", Severity.INFO),
-                // Mod keys (simulated)
-                new MockKeyBinding("[Mod] 飞行", "G", Severity.WARNING),
-                new MockKeyBinding("[Mod] 传送", "H", Severity.SEVERE),
-                new MockKeyBinding("[Mod] 菜单", "M", Severity.INFO),
-                new MockKeyBinding("[Mod] 夜视", "N", Severity.SAFE),
-                new MockKeyBinding("[Mod] 无敌", "K", Severity.SEVERE)
-        );
-    }
-
     protected List<MockConflict> getMockConflicts() {
         return List.of(
                 new MockConflict("W", "UP", Severity.SEVERE,
@@ -462,9 +432,6 @@ public class KeyBindingScreen extends Screen {
                 new MockConflict("命令", "/", Severity.INFO,
                         "/ 键在某些输入法下会触发输入法候选框，与命令输入有轻微干扰。")
         );
-    }
-
-    public record MockKeyBinding(String name, String boundKey, Severity severity) {
     }
 
     public record MockConflict(String leftKey, String rightKey, Severity severity, String description) {
@@ -525,90 +492,6 @@ public class KeyBindingScreen extends Screen {
         }
     }
 
-    private class KeyBindingListWidget extends AbstractWidget {
-        private int scrollOffset;
-
-        KeyBindingListWidget(int x, int y, int width, int height) {
-            super(x, y, width, height, Component.empty());
-        }
-
-        @Override
-        protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
-            graphics.enableScissor(getX(), getY(), getX() + getWidth(), getY() + getHeight());
-
-            int usableW = getWidth() - SCROLLBAR_W;
-            int bindBtnW = usableW / 2;
-            int firstY = getY() - scrollOffset;
-
-            for (int i = 0; i < keyBindings.size(); i++) {
-                MockKeyBinding kb = keyBindings.get(i);
-                int rowY = firstY + i * ROW_H;
-                int rowBot = rowY + ROW_H;
-                if (rowBot < getY() || rowY > getY() + getHeight()) continue;
-
-                if (i == selectedKeyIndex) {
-                    graphics.fill(getX(), rowY, getX() + usableW, rowBot, COL_SELECTED);
-                }
-                if (mouseX >= getX() && mouseX < getX() + usableW
-                        && mouseY >= rowY && mouseY < rowBot) {
-                    graphics.fill(getX(), rowY, getX() + usableW, rowBot, COL_HOVER);
-                }
-
-                int textY = rowY + (ROW_H - 9) / 2;
-                graphics.text(font, kb.name(), getX() + 4, textY, 0xFFEEEEEE);
-
-                int btnX = getX() + usableW - bindBtnW;
-                int tint = severityTint(kb.severity());
-                if (tint != 0) {
-                    graphics.fill(btnX, rowY, getX() + usableW, rowBot, tint);
-                }
-                if (mouseX >= btnX && mouseX < getX() + usableW
-                        && mouseY >= rowY && mouseY < rowBot) {
-                    graphics.fill(btnX, rowY, getX() + usableW, rowBot, COL_HOVER);
-                }
-                graphics.centeredText(font, kb.boundKey(), btnX + bindBtnW / 2, textY, 0xFFFFFFFF);
-
-                graphics.fill(getX(), rowBot - 1, getX() + usableW, rowBot, 0x30FFFFFF);
-            }
-
-            graphics.disableScissor();
-            renderScrollbar(graphics, getX(), getY(), getWidth(), getHeight(),
-                    scrollOffset, keyBindings.size());
-            handleCursor(graphics);
-        }
-
-        @Override
-        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            if (!isMouseOver(event.x(), event.y())) return false;
-
-            int relY = (int) (event.y() - getY() + scrollOffset);
-            int idx = relY / ROW_H;
-            if (idx < 0 || idx >= keyBindings.size()) return false;
-
-            selectedKeyIndex = idx;
-            onKeySelected(idx);
-
-            int usableW = getWidth() - SCROLLBAR_W;
-            int bindBtnX = getX() + usableW / 2;
-            if (event.x() >= bindBtnX && event.x() < getX() + usableW) {
-                if (event.button() == 0) onBindingLeftClick(idx);
-                else if (event.button() == 1) onBindingRightClick(idx);
-            }
-            return true;
-        }
-
-        @Override
-        public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
-            if (!isMouseOver(x, y)) return false;
-            int max = Math.max(0, keyBindings.size() * ROW_H - getHeight());
-            scrollOffset = (int) Math.max(0, Math.min(max, scrollOffset - scrollY * ROW_H));
-            return true;
-        }
-
-        @Override
-        protected void updateWidgetNarration(NarrationElementOutput output) {
-        }
-    }
 
     private class ConflictListWidget extends AbstractWidget {
         private int scrollOffset;
