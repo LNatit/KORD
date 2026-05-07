@@ -14,8 +14,8 @@ import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -35,6 +35,7 @@ public class KeyDiag extends Screen
     public static final int TOTAL_WIDTH = 9;
     public static final int BINDINGLIST_WIDTH_RATIO = 5;
     public static final int TOOLBAR_HEIGHT = 24;
+    public static final int TEXT_PAD = 4;
 
 
     private final Screen previousScreen;
@@ -42,8 +43,6 @@ public class KeyDiag extends Screen
     private final Sidebar sidebar = new Sidebar();
     private final BindingList bindingList = new BindingList();
     private final Diagnostics diagnostics = new Diagnostics();
-
-
 
     public KeyDiag(Screen previous) {
         super(Component.empty());
@@ -85,6 +84,14 @@ public class KeyDiag extends Screen
         this.sidebar.repositionElements();
         this.bindingList.repositionElements();
         this.diagnostics.repositionElements();
+    }
+
+    private void onKeySelected(BindingList.Bindings.KeyEntry entry) {
+        // TODO: rebuild Conflicts list for entry.keyMapping
+    }
+
+    private void onConflictSelected(Diagnostics.Conflicts.Entry entry) {
+        // TODO: refresh Detail panel for entry.result
     }
 
     private boolean isSmallerThanMinimumSize() {
@@ -219,38 +226,105 @@ public class KeyDiag extends Screen
         // Bindings
         // SearchBar
 
-        private class Bindings extends ListWidget<Bindings.Entry>
+        private class Bindings extends ListWidget<Bindings.KeyEntry>
         {
             @Override
             public void init() {
                 for (KeyMapping key : Minecraft.getInstance().options.keyMappings) {
-                    this.addEntry(new Entry(key));
+                    this.addEntry(new KeyEntry(key));
                 }
                 super.init();
             }
 
-            @Override
-            protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+            private final class CategoryEntry extends ListWidget.Entry
+            {
+                public static final int CATEGORY_COLOR = 0xFFDDDDDD;
+
+                private final KeyMapping.Category category;
+
+                private CategoryEntry(KeyMapping.Category category) {this.category = category;}
+
+                @Override
+                public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+                    graphics.centeredText(KeyDiag.this.font,
+                                          category.label(),
+                                          this.getX() + this.getWidth() / 2,
+                                          this.getY() + (this.getHeight() - 9) / 2,
+                                          CATEGORY_COLOR);
+                }
 
             }
 
-            private final class Entry extends KeyDiag.Entry
+            private final class KeyEntry extends ListWidget.Entry implements Selectable
             {
                 private final KeyMapping keyMapping;
-                private Severity severity;
+                private Severity severity = Severity.SAFE;
 
-                public Entry(KeyMapping keyMapping) {
+                public KeyEntry(KeyMapping keyMapping) {
                     super();
                     this.keyMapping = keyMapping;
-                    this.severity = Backend.filter(Backend.byKeyMapping(keyMapping)).stream()
-                                           .map(ConflictResult::severity)
-                                           .max(Severity::compareTo)
-                                           .orElse(Severity.SAFE);
+                    this.refreshSeverity();
                 }
 
                 @Override
                 public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+                    int rowX = this.getX();
+                    int rowY = this.getY();
+                    int rowW = this.getWidth();
+                    int rowH = this.getHeight();
 
+                    int bindBtnX = rowX + rowW / 2;
+                    int bindBtnW = rowW - rowW / 2;
+
+                    boolean hovered = this.isMouseOver(mouseX, mouseY);
+                    if (hovered) {
+                        graphics.fill(rowX, rowY, rowX + rowW, rowY + rowH, BG_HOVER);
+                    }
+
+                    int tint = severityTint(this.severity);
+                    if (tint != 0) {
+                        graphics.fill(bindBtnX, rowY, rowX + rowW, rowY + rowH, tint);
+                    }
+
+                    if (this.isFocused()) {
+                        graphics.outline(rowX, rowY, rowW, rowH, 0xFFFFFFFF);
+                    }
+
+                    int textY = rowY + (rowH - 9) / 2;
+                    KeyDiag.drawScrollingText(
+                            graphics,
+                            KeyDiag.this.font,
+                            this.keyMapping.getDisplayName(),
+                            rowX + TEXT_PAD,
+                            rowY,
+                            bindBtnX - TEXT_PAD,
+                            rowY + rowH,
+                            0xFFEEEEEE,
+                            hovered
+                    );
+                    graphics.centeredText(KeyDiag.this.font,
+                                          this.keyMapping.getTranslatedKeyMessage(),
+                                          bindBtnX + bindBtnW / 2,
+                                          textY,
+                                          0xFFFFFFFF);
+                }
+
+                @Override
+                public void select() {
+                    KeyDiag.this.setFocused(this);
+                }
+
+                @Override
+                public boolean isFocused() {
+                    return KeyDiag.this.getFocused() == this;
+                }
+
+                private void refreshSeverity() {
+                    this.severity = Backend.filter(Backend.byKeyMapping(keyMapping))
+                                           .stream()
+                                           .map(ConflictResult::severity)
+                                           .max(Severity::compareTo)
+                                           .orElse(Severity.SAFE);
                 }
             }
         }
@@ -378,12 +452,8 @@ public class KeyDiag extends Screen
                 super.init();
             }
 
-            @Override
-            protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
 
-            }
-
-            private final class Entry extends KeyDiag.Entry
+            private final class Entry extends ListWidget.Entry implements Selectable
             {
                 private final ConflictResult result;
 
@@ -393,13 +463,18 @@ public class KeyDiag extends Screen
                 }
 
                 @Override
-                public void init() {
+                public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
 
                 }
 
                 @Override
-                public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+                public void select() {
+                    KeyDiag.this.setFocused(this);
+                }
 
+                @Override
+                public boolean isFocused() {
+                    return KeyDiag.this.getFocused() == this;
                 }
             }
         }
@@ -456,11 +531,69 @@ public class KeyDiag extends Screen
         }
     }
 
+    private static int severityTint(Severity severity) {
+        return switch (severity) {
+            case SAFE -> 0;
+            case INFO -> 0x400080FF;
+            case WARNING -> 0x40FFFF00;
+            case SEVERE -> 0x40FF0000;
+        };
+    }
+
+    /**
+     * Draws text clipped to [x1, x2]. If the text is wider than the available space,
+     * it scrolls left and right with a short pause at each end.
+     *
+     * <p>Timing: 30 ms per scroll-pixel, 2 000 ms pause at each end.</p>
+     */
+    private static void drawScrollingText(
+            GuiGraphicsExtractor graphics,
+            net.minecraft.client.gui.Font font,
+            Component text,
+            int x1, int y1, int x2, int y2,
+            int color,
+            boolean scrolling
+    ) {
+        int availW = x2 - x1;
+        int textW = font.width(text);
+        int textY = y1 + (y2 - y1 - 9) / 2;
+
+        if (textW <= availW) {
+            graphics.text(font, text, x1, textY, color);
+            return;
+        }
+
+        int scrollRange = textW - availW;
+        long msPerPx = 30L;
+        long pause = 2000L;
+        long period = scrollRange * msPerPx + pause * 2;
+        long t = System.currentTimeMillis() % period;
+
+        int offset;
+        if (!scrolling || t < pause) {
+            offset = 0;
+        }
+        else if (t < pause + scrollRange * msPerPx) {
+            offset = (int) ((t - pause) / msPerPx);
+        }
+        else {
+            offset = scrollRange;
+        }
+
+        graphics.enableScissor(x1, y1, x2, y2);
+        graphics.text(font, text, x1 - offset, textY, color);
+        graphics.disableScissor();
+    }
+
     private interface Reloadable
     {
         void repositionElements();
 
         default void init() {}
+    }
+
+    private sealed interface Selectable permits BindingList.Bindings.KeyEntry, Diagnostics.Conflicts.Entry {
+        void select();
     }
 
     private static abstract class Panel implements Reloadable, LayoutElement, Renderable
@@ -540,7 +673,8 @@ public class KeyDiag extends Screen
         }
     }
 
-    private static abstract class ListWidget<E extends Entry> extends Widget {
+    private static abstract class ListWidget<E extends ListWidget.Entry> extends Widget
+    {
         private static final int SCROLLBAR_WIDTH = 6;
         private static final int SCROLLER_MIN_HEIGHT = 32;
         private static final int COL_SCROLLBAR_TRACK = 0x40202020;
@@ -642,18 +776,21 @@ public class KeyDiag extends Screen
             if (max == 0) {
                 return this.getY();
             }
-            return Math.max(this.getY(), (int) this.scrollAmount * (this.getHeight() - this.scrollerHeight()) / max + this.getY());
+            return Math.max(this.getY(),
+                            (int) this.scrollAmount * (this.getHeight() - this.scrollerHeight()) / max + this.getY());
         }
 
         protected boolean isOverScrollbar(double x, double y) {
             return x >= this.scrollBarX()
-                    && x <= this.scrollBarX() + this.scrollbarWidth()
-                    && y >= this.getY()
-                    && y < this.getBottom();
+                   && x <= this.scrollBarX() + this.scrollbarWidth()
+                   && y >= this.getY()
+                   && y < this.getBottom();
         }
 
         protected boolean updateScrolling(MouseButtonEvent event) {
-            this.scrolling = this.scrollable() && this.isValidClickButton(event.buttonInfo()) && this.isOverScrollbar(event.x(), event.y());
+            this.scrolling = this.scrollable() && this.isValidClickButton(event.buttonInfo()) && this.isOverScrollbar(
+                    event.x(),
+                    event.y());
             return this.scrolling;
         }
 
@@ -690,8 +827,8 @@ public class KeyDiag extends Screen
             }
 
             E entry = this.getEntryAtPosition(event.x(), event.y());
-            if (entry != null) {
-                entry.setFocused(true);
+            if (entry instanceof Selectable selectable) {
+                selectable.select();
                 return entry.mouseClicked(event, doubleClick);
             }
             return false;
@@ -711,9 +848,11 @@ public class KeyDiag extends Screen
             if (this.scrolling) {
                 if (event.y() < this.getY()) {
                     this.setScrollAmount(0.0);
-                } else if (event.y() > this.getBottom()) {
+                }
+                else if (event.y() > this.getBottom()) {
                     this.setScrollAmount(this.maxScrollAmount());
-                } else {
+                }
+                else {
                     double max = Math.max(1, this.maxScrollAmount());
                     int barHeight = this.scrollerHeight();
                     double yDragScale = Math.max(1.0, max / (this.getHeight() - barHeight));
@@ -731,8 +870,8 @@ public class KeyDiag extends Screen
         }
 
         @Override
-        protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
-            Entry entry = isMouseOver(mouseX, mouseY) ? this.getEntryAtPosition(mouseX, mouseY) : null;
+        protected final void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+            extractListBackground(graphics, mouseX, mouseY, a);
 
             graphics.enableScissor(this.getX(), this.getY(), this.getRight(), this.getBottom());
             for (E child : this.children) {
@@ -746,40 +885,52 @@ public class KeyDiag extends Screen
             int scrollerHeight = this.scrollerHeight();
             int scrollerY = this.scrollBarY();
             if (this.scrollable()) {
-                graphics.fill(scrollbarX, this.getY(), scrollbarX + this.scrollbarWidth(), this.getBottom(), COL_SCROLLBAR_TRACK);
-                graphics.fill(scrollbarX, scrollerY, scrollbarX + this.scrollbarWidth(), scrollerY + scrollerHeight, COL_SCROLLBAR_THUMB);
-            }
-        }
-    }
-
-    private abstract sealed class Entry extends Panel implements GuiEventListener permits BindingList.Bindings.Entry, Diagnostics.Conflicts.Entry
-    {
-        @Override
-        public void repositionElements() {
-        }
-
-        @Override
-        public ScreenRectangle getRectangle() {
-            return super.getRectangle();
-        }
-
-        @Override
-        public boolean isMouseOver(double mouseX, double mouseY) {
-            return this.getRectangle().containsPoint((int) mouseX, (int) mouseY);
-        }
-
-        @Override
-        public void setFocused(boolean focused) {
-            if (focused) {
-                KeyDiag.this.setFocused(this);
-            } else if (this.isFocused()) {
-                KeyDiag.this.setFocused(false);
+                graphics.fill(scrollbarX,
+                              this.getY(),
+                              scrollbarX + this.scrollbarWidth(),
+                              this.getBottom(),
+                              COL_SCROLLBAR_TRACK);
+                graphics.fill(scrollbarX,
+                              scrollerY,
+                              scrollbarX + this.scrollbarWidth(),
+                              scrollerY + scrollerHeight,
+                              COL_SCROLLBAR_THUMB);
             }
         }
 
-        @Override
-        public boolean isFocused() {
-            return KeyDiag.this.getFocused() == this;
+        protected void extractListBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+        }
+
+        private static abstract class Entry extends Panel implements GuiEventListener
+        {
+            public static final int BG_HOVER = 0x30FFFFFF;
+
+            @Override
+            public void repositionElements() {
+            }
+
+            @Override
+            public ScreenRectangle getRectangle() {
+                return super.getRectangle();
+            }
+
+            public boolean isMouseOver(int mouseX, int mouseY) {
+                return this.getRectangle().containsPoint(mouseX, mouseY);
+            }
+
+            @Override
+            public boolean isMouseOver(double mouseX, double mouseY) {
+                return this.isMouseOver((int) mouseX, (int) mouseY);
+            }
+
+            @Override
+            public void setFocused(boolean focused) {
+            }
+
+            @Override
+            public boolean isFocused() {
+                return false;
+            }
         }
     }
 

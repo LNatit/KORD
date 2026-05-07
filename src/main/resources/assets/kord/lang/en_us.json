@@ -1,0 +1,9 @@
+{
+  "gui.kord.exit":     "Exit",
+  "gui.kord.settings": "Settings",
+  "gui.kord.reload":   "Reload",
+  "gui.kord.refresh":  "Refresh",
+  "gui.kord.navigate": "Navigate",
+  "gui.kord.edit":     "Edit"
+}
+

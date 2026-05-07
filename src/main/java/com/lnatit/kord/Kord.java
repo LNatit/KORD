@@ -5,7 +5,7 @@ import com.lnatit.kord.data.mutex.MutexSetManager;
 import com.lnatit.kord.data.override.DatapackOverrideReloader;
 import com.lnatit.kord.data.resource.ResourceReloadListener;
 import com.lnatit.kord.data.semantic.KeySemanticManager;
-import com.lnatit.kord.gui.KeyBindingScreen;
+import com.lnatit.kord.gui.front.KeyDiag;
 import net.minecraft.resources.Identifier;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -24,7 +24,7 @@ public class Kord
 
     public Kord(IEventBus modEventBus, ModContainer modContainer) {
         // TODO test code
-        modContainer.registerExtensionPoint(IConfigScreenFactory.class, (c, s) -> new KeyBindingScreen());
+        modContainer.registerExtensionPoint(IConfigScreenFactory.class, (c, s) -> new KeyDiag(s));
         modEventBus.addListener(this::registerKordReloadListeners);
     }
 
