@@ -12,6 +12,7 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import org.apache.commons.lang3.ArrayUtils;
+import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -19,12 +20,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.IntConsumer;
 
-public class KeyBindingSelectionListWidget extends AbstractSelectionList<KeyBindingSelectionListWidget.ListEntry>
+public class KeyBindingSelectionListWidget extends AbstractSelectionList<KeyBindingSelectionListWidget.@NotNull ListEntry>
 {
     private static final int ROW_H = 20;
     private static final int SCROLLBAR_W = 4;
     private static final int TEXT_PAD = 4;
-    private static final long TEXT_SCROLL_PERIOD_MS = 3000L;
+    private static final long TEXT_SCROLL_PERIOD_MS = 5000L;
 
     private static final int COL_HOVER = 0x60404040;
     private static final int COL_SELECTED = 0x803366FF;
