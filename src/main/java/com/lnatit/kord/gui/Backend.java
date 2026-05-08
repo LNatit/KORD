@@ -9,6 +9,7 @@ import com.lnatit.kord.result.risk.Finalized;
 import com.lnatit.kord.result.risk.Severity;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.client.settings.KeyModifier;
 
 import java.util.ArrayList;
@@ -58,12 +59,25 @@ public class Backend
 
     @SafeVarargs
     public static List<ConflictResult> filter(Predicate<ConflictResult>... predicates) {
-        return ACTIVE_RESULTS.stream().filter(result -> {
-            for (Predicate<ConflictResult> predicate : predicates) {
-                if (!predicate.test(result)) return false;
+        return List.of(new ConflictResult() {
+            @Override
+            public KeyPair pair() {
+                return KeyPair.of(Minecraft.getInstance().options.keyAttack, Minecraft.getInstance().options.keyDebugClearChat);
             }
-            return true;
-        }).toList();
+
+            @Override
+            public Severity severity() {
+                return Severity.WARNING;
+            }
+        });
+
+
+//        return ACTIVE_RESULTS.stream().filter(result -> {
+//            for (Predicate<ConflictResult> predicate : predicates) {
+//                if (!predicate.test(result)) return false;
+//            }
+//            return true;
+//        }).toList();
     }
 
     public static Predicate<ConflictResult> byKey(InputConstants.Key key) {

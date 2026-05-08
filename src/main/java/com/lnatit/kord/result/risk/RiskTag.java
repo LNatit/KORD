@@ -6,6 +6,12 @@ public interface RiskTag
     RiskTag CONTEXT_MUTEX = of("context_mutex");
     RiskTag CONTEXT_CONFLICT = of("context_conflict");
 
+    String id();
+
+    default String translationKey() {
+        return "kord.risk." + id();
+    }
+
     static RiskTag of(String id) {
         return new Simple(id);
     }

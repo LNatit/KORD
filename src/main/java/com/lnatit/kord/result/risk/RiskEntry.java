@@ -1,12 +1,18 @@
 package com.lnatit.kord.result.risk;
 
+import com.lnatit.kord.eval.KeyPair;
 import com.lnatit.kord.semantic.KeyContext;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 
 public interface RiskEntry<T extends RiskTag> extends ConflictRisk
 {
     T tag();
+
+    default Component display(KeyPair pair) {
+        return Component.translatable(tag().translationKey());
+    }
 
     static <T extends RiskTag> RiskEntry<T> create(T tag, Severity severity) {
         return new Immutable<>(tag, severity);

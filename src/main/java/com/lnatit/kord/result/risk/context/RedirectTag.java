@@ -7,13 +7,22 @@ import com.lnatit.kord.result.risk.Severity;
 
 public enum RedirectTag implements RiskTag
 {
-    NO_REDIRECT,
-    CONTEXT_LEAK,
-    DEFERRED_RISK,
-    LOSE_FOCUS,
-    FOCUS_COLLISION,
-    INPUT_BLOCK,
-    CONTEXT_CLASH;
+    NO_REDIRECT("r_no_redirect"),
+    CONTEXT_LEAK("r_context_leak"),
+    DEFERRED_RISK("r_deferred_risk"),
+    LOSE_FOCUS("r_lose_focus"),
+    FOCUS_COLLISION("r_focus_collision"),
+    INPUT_BLOCK("r_input_block"),
+    CONTEXT_CLASH("r_context_clash");
+
+    private final String id;
+
+    RedirectTag(String id) {this.id = id;}
+
+    @Override
+    public String id() {
+        return this.id;
+    }
 
     public interface ModalDependent {
         void acceptModality(Modality subject, Modality opponent);
