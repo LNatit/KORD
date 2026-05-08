@@ -4,6 +4,7 @@
   "gui.kord.reload":   "Reload",
   "gui.kord.refresh":  "Refresh",
   "gui.kord.navigate": "Navigate",
-  "gui.kord.edit":     "Edit"
+  "gui.kord.edit":     "Edit",
+  "gui.kord.keybind_hint": "Left-click to rebind, Right-click to reset"
 }
 
