@@ -383,26 +383,16 @@ public class KeyDiag extends Screen
         private class SearchBar extends EditBox
         {
             public static final int BACKGROUND_COLOR = 0xC0000000;
+            public static final Component HINT = Component.translatable("gui.kord.search_keys");
 
             public SearchBar() {
-                super(KeyDiag.this.font, 0, 0, 0, 20, Component.empty());
-                this.setResponder(s -> {});
+                super(KeyDiag.this.font, 0, 0, 0, 20, BACKGROUND_COLOR);
                 this.setBordered(false);
+                this.setHint(HINT);
             }
 
             @Override
-            public void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
-                graphics.fill(this.getX(), this.getY(), this.getRight(), this.getBottom(), BACKGROUND_COLOR);
-                super.extractWidgetRenderState(graphics, mouseX, mouseY, a);
-            }
-
-            @Override
-            public void onClick(MouseButtonEvent event, boolean doubleClick) {
-                if (event.button() == 1) {
-                    this.setValue("");
-                    return;
-                }
-                super.onClick(event, doubleClick);
+            protected void onUpdate(String value) {
             }
         }
     }
@@ -823,6 +813,485 @@ public class KeyDiag extends Screen
         }
     }
 
+    // Clean-room edit box based on Widget, kept minimal for SearchBar migration.
+    private static abstract class EditBox extends Widget
+    {
+        public static final int DEFAULT_TEXT_COLOR = -2039584;
+        public static final Style DEFAULT_HINT_STYLE = Style.EMPTY.withColor(ChatFormatting.DARK_GRAY);
+
+        private final Font font;
+        private final int backgroundColor;
+        private String value = "";
+        private int maxLength = 32;
+        private boolean bordered = true;
+        private boolean canLoseFocus = true;
+        private boolean editable = true;
+        private boolean textShadow = true;
+        private int displayPos;
+        private int cursorPos;
+        private int highlightPos;
+        private int textColor = DEFAULT_TEXT_COLOR;
+        private int textColorUneditable = -9408400;
+        private @Nullable Component hint;
+        private java.util.function.Predicate<String> filter = s -> true;
+        private boolean focused;
+        private long focusedTime = Util.getMillis();
+        private int textX;
+        private int textY;
+
+        public EditBox(Font font, int width, int height, int backgroundColor) {
+            this(font, 0, 0, width, height, backgroundColor);
+        }
+
+        public EditBox(Font font, int x, int y, int width, int height, int backgroundColor) {
+            this.font = font;
+            this.backgroundColor = backgroundColor;
+            this.setRectangle(width, height, x, y);
+            this.updateTextPosition();
+        }
+
+        public void setFilter(java.util.function.Predicate<String> filter) {
+            this.filter = filter;
+        }
+
+        public void setValue(String value) {
+            value = sanitizeSingleLine(value);
+            if (!this.filter.test(value)) {
+                return;
+            }
+            this.value = value.length() > this.maxLength ? value.substring(0, this.maxLength) : value;
+            this.moveCursorToEnd(false);
+            this.setHighlightPos(this.cursorPos);
+            this.onValueChange(this.value);
+        }
+
+        public String getValue() {
+            return this.value;
+        }
+
+        public void setMaxLength(int maxLength) {
+            this.maxLength = maxLength;
+            if (this.value.length() > maxLength) {
+                this.value = this.value.substring(0, maxLength);
+                this.onValueChange(this.value);
+            }
+        }
+
+        public void setBordered(boolean bordered) {
+            this.bordered = bordered;
+            this.updateTextPosition();
+        }
+
+        public void setEditable(boolean editable) {
+            this.editable = editable;
+        }
+
+        public void setCanLoseFocus(boolean canLoseFocus) {
+            this.canLoseFocus = canLoseFocus;
+        }
+
+        public void setTextColor(int textColor) {
+            this.textColor = textColor;
+        }
+
+        public void setTextColorUneditable(int textColorUneditable) {
+            this.textColorUneditable = textColorUneditable;
+        }
+
+        public void setHint(Component hint) {
+            this.hint = hint.getStyle().equals(Style.EMPTY) ? hint.copy().withStyle(DEFAULT_HINT_STYLE) : hint;
+        }
+
+        @Override
+        public void setX(int x) {
+            super.setX(x);
+            this.updateTextPosition();
+        }
+
+        @Override
+        public void setY(int y) {
+            super.setY(y);
+            this.updateTextPosition();
+        }
+
+        @Override
+        public void setFocused(boolean focused) {
+            if (this.canLoseFocus || focused) {
+                this.focused = focused;
+                if (focused) {
+                    this.focusedTime = Util.getMillis();
+                }
+            }
+        }
+
+        @Override
+        public boolean isFocused() {
+            return this.focused;
+        }
+
+        private boolean canConsumeInput() {
+            return this.isFocused() && this.editable;
+        }
+
+        private int getInnerWidth() {
+            return this.width - TEXT_PAD * 2;
+        }
+
+        private int getMaxLength() {
+            return this.maxLength;
+        }
+
+        private void onValueChange(String value) {
+            this.onUpdate(value);
+            this.updateTextPosition();
+        }
+
+        protected abstract void onUpdate(String value);
+
+        private static String sanitizeSingleLine(String value) {
+            return value.replace("\r", "").replace("\n", "");
+        }
+
+        private void updateTextPosition() {
+            this.textX = this.getX() + TEXT_PAD;
+            this.textY = this.getY() + (this.height - 8) / 2;
+        }
+
+        private void scrollTo(int pos) {
+            this.displayPos = Math.min(this.displayPos, this.value.length());
+            int innerWidth = this.getInnerWidth();
+            String displayed = this.font.plainSubstrByWidth(this.value.substring(this.displayPos), innerWidth);
+            int lastPos = displayed.length() + this.displayPos;
+            if (pos == this.displayPos) {
+                this.displayPos -= this.font.plainSubstrByWidth(this.value, innerWidth, true).length();
+            }
+            if (pos > lastPos) {
+                this.displayPos += pos - lastPos;
+            } else if (pos <= this.displayPos) {
+                this.displayPos -= this.displayPos - pos;
+            }
+            this.displayPos = Mth.clamp(this.displayPos, 0, this.value.length());
+        }
+
+        private int getCursorPos(int dir) {
+            return Util.offsetByCodepoints(this.value, this.cursorPos, dir);
+        }
+
+        private int getWordPosition(int dir) {
+            return this.getWordPosition(dir, this.cursorPos, true);
+        }
+
+        private int getWordPosition(int dir, int from, boolean stripSpaces) {
+            int result = from;
+            boolean reverse = dir < 0;
+            int abs = Math.abs(dir);
+            for (int i = 0; i < abs; i++) {
+                if (!reverse) {
+                    int length = this.value.length();
+                    result = this.value.indexOf(32, result);
+                    if (result == -1) {
+                        result = length;
+                    } else {
+                        while (stripSpaces && result < length && this.value.charAt(result) == ' ') {
+                            result++;
+                        }
+                    }
+                } else {
+                    while (stripSpaces && result > 0 && this.value.charAt(result - 1) == ' ') {
+                        result--;
+                    }
+                    while (result > 0 && this.value.charAt(result - 1) != ' ') {
+                        result--;
+                    }
+                }
+            }
+            return result;
+        }
+
+        public void setCursorPosition(int pos) {
+            this.cursorPos = Mth.clamp(pos, 0, this.value.length());
+            this.scrollTo(this.cursorPos);
+        }
+
+        public void setHighlightPos(int pos) {
+            this.highlightPos = Mth.clamp(pos, 0, this.value.length());
+            this.scrollTo(this.highlightPos);
+        }
+
+        public void moveCursorTo(int pos, boolean extendSelection) {
+            this.setCursorPosition(pos);
+            if (!extendSelection) {
+                this.setHighlightPos(this.cursorPos);
+            }
+            this.updateTextPosition();
+        }
+
+        public void moveCursorToStart(boolean extendSelection) {
+            this.moveCursorTo(0, extendSelection);
+        }
+
+        public void moveCursorToEnd(boolean extendSelection) {
+            this.moveCursorTo(this.value.length(), extendSelection);
+        }
+
+        public void moveCursor(int dir, boolean extendSelection) {
+            this.moveCursorTo(this.getCursorPos(dir), extendSelection);
+        }
+
+        public void insertText(String input) {
+            int start = Math.min(this.cursorPos, this.highlightPos);
+            int end = Math.max(this.cursorPos, this.highlightPos);
+            int maxInsertionLength = this.maxLength - this.value.length() - (start - end);
+            if (maxInsertionLength <= 0) {
+                return;
+            }
+            String text = sanitizeSingleLine(StringUtil.filterText(input));
+            if (text.length() > maxInsertionLength) {
+                if (Character.isHighSurrogate(text.charAt(maxInsertionLength - 1))) {
+                    maxInsertionLength--;
+                }
+                text = text.substring(0, maxInsertionLength);
+            }
+            if (!this.filter.test(text)) {
+                return;
+            }
+            this.value = new StringBuilder(this.value).replace(start, end, text).toString();
+            this.setCursorPosition(start + text.length());
+            this.setHighlightPos(this.cursorPos);
+            this.onValueChange(this.value);
+        }
+
+        private void deleteCharsToPos(int pos) {
+            if (this.value.isEmpty()) {
+                return;
+            }
+            if (this.highlightPos != this.cursorPos) {
+                this.insertText("");
+                return;
+            }
+            int start = Math.min(pos, this.cursorPos);
+            int end = Math.max(pos, this.cursorPos);
+            if (start != end) {
+                this.value = new StringBuilder(this.value).delete(start, end).toString();
+                this.setCursorPosition(start);
+                this.onValueChange(this.value);
+                this.moveCursorTo(start, false);
+            }
+        }
+
+        public void deleteChars(int dir) {
+            this.deleteCharsToPos(this.getCursorPos(dir));
+        }
+
+        public void deleteWords(int dir) {
+            if (!this.value.isEmpty()) {
+                if (this.highlightPos != this.cursorPos) {
+                    this.insertText("");
+                } else {
+                    this.deleteCharsToPos(this.getWordPosition(dir));
+                }
+            }
+        }
+
+        public String getHighlighted() {
+            int start = Math.min(this.cursorPos, this.highlightPos);
+            int end = Math.max(this.cursorPos, this.highlightPos);
+            return this.value.substring(start, end);
+        }
+
+        private int findClickedPositionInText(MouseButtonEvent event) {
+            int positionInText = Math.min(Mth.floor(event.x()) - this.textX, this.getInnerWidth());
+            String displayed = this.value.substring(this.displayPos);
+            return this.displayPos + this.font.plainSubstrByWidth(displayed, positionInText).length();
+        }
+
+        @Override
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            if (!this.isMouseOver(event.x(), event.y())) {
+                return false;
+            }
+            if (event.button() == 1) {
+                this.setValue("");
+                this.setFocused(true);
+                return true;
+            }
+            if (!this.isValidClickButton(event.buttonInfo())) {
+                return false;
+            }
+            this.setFocused(true);
+            this.onClick(event, doubleClick);
+            return true;
+        }
+
+        public void onClick(MouseButtonEvent event, boolean doubleClick) {
+            if (doubleClick) {
+                this.moveCursorToStart(false);
+                this.moveCursorToEnd(true);
+                return;
+            }
+            this.moveCursorTo(this.findClickedPositionInText(event), event.hasShiftDown());
+        }
+
+        protected void onDrag(MouseButtonEvent event, double dx, double dy) {
+            this.moveCursorTo(this.findClickedPositionInText(event), true);
+        }
+
+        @Override
+        public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+            if (!this.isFocused() || !this.isValidClickButton(event.buttonInfo()) || !this.isMouseOver(event.x(), event.y())) {
+                return false;
+            }
+            this.onDrag(event, dx, dy);
+            return true;
+        }
+
+        @Override
+        public boolean keyPressed(KeyEvent event) {
+            if (!this.canConsumeInput()) {
+                return false;
+            }
+            switch (event.key()) {
+                case 259 -> {
+                    this.deleteText(-1, event.hasControlDownWithQuirk());
+                    return true;
+                }
+                case 261 -> {
+                    this.deleteText(1, event.hasControlDownWithQuirk());
+                    return true;
+                }
+                case 262 -> {
+                    if (event.hasControlDownWithQuirk()) {
+                        this.moveCursorTo(this.getWordPosition(1), event.hasShiftDown());
+                    } else {
+                        this.moveCursor(1, event.hasShiftDown());
+                    }
+                    return true;
+                }
+                case 263 -> {
+                    if (event.hasControlDownWithQuirk()) {
+                        this.moveCursorTo(this.getWordPosition(-1), event.hasShiftDown());
+                    } else {
+                        this.moveCursor(-1, event.hasShiftDown());
+                    }
+                    return true;
+                }
+                case 268 -> {
+                    this.moveCursorToStart(event.hasShiftDown());
+                    return true;
+                }
+                case 269 -> {
+                    this.moveCursorToEnd(event.hasShiftDown());
+                    return true;
+                }
+                default -> {
+                    if (event.isSelectAll()) {
+                        this.moveCursorToEnd(false);
+                        this.setHighlightPos(0);
+                        return true;
+                    }
+                    if (event.isCopy()) {
+                        Minecraft.getInstance().keyboardHandler.setClipboard(this.getHighlighted());
+                        return true;
+                    }
+                    if (event.isPaste()) {
+                        this.insertText(Minecraft.getInstance().keyboardHandler.getClipboard());
+                        return true;
+                    }
+                    if (event.isCut()) {
+                        Minecraft.getInstance().keyboardHandler.setClipboard(this.getHighlighted());
+                        this.insertText("");
+                        return true;
+                    }
+                    return false;
+                }
+            }
+        }
+
+        @Override
+        public boolean charTyped(CharacterEvent event) {
+            if (!this.canConsumeInput()) {
+                return false;
+            }
+            if (!event.isAllowedChatCharacter()) {
+                return false;
+            }
+            this.insertText(event.codepointAsString());
+            return true;
+        }
+
+        private void deleteText(int dir, boolean wholeWord) {
+            if (wholeWord) {
+                this.deleteWords(dir);
+            } else {
+                this.deleteChars(dir);
+            }
+        }
+
+        @Override
+        public final void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+            graphics.fill(this.getX(), this.getY(), this.getRight(), this.getBottom(), this.backgroundColor);
+
+            if (this.bordered) {
+                graphics.outline(this.getX(), this.getY(), this.getWidth(), this.getHeight(), 0xFF505050);
+            }
+
+            int color = this.editable ? this.textColor : this.textColorUneditable;
+            int relCursorPos = this.cursorPos - this.displayPos;
+            String displayed = this.font.plainSubstrByWidth(this.value.substring(this.displayPos), this.getInnerWidth());
+            boolean cursorOnScreen = relCursorPos >= 0 && relCursorPos <= displayed.length();
+            boolean showCursor = this.isFocused() && TextCursorUtils.isCursorVisible(Util.getMillis() - this.focusedTime) && cursorOnScreen;
+
+            int drawX = this.textX;
+            int relHighlightPos = Mth.clamp(this.highlightPos - this.displayPos, 0, displayed.length());
+
+            if (!displayed.isEmpty()) {
+                String left = cursorOnScreen ? displayed.substring(0, relCursorPos) : displayed;
+                graphics.text(this.font, left, drawX, this.textY, color, this.textShadow);
+                drawX += this.font.width(left) + 1;
+            }
+
+            boolean insert = this.cursorPos < this.value.length() || this.value.length() >= this.getMaxLength();
+            int cursorX = drawX;
+            if (!cursorOnScreen) {
+                cursorX = relCursorPos > 0 ? this.textX + this.width : this.textX;
+            } else if (insert) {
+                cursorX = drawX - 1;
+                drawX--;
+            }
+
+            if (!displayed.isEmpty() && cursorOnScreen && relCursorPos < displayed.length()) {
+                graphics.text(this.font, displayed.substring(relCursorPos), drawX, this.textY, color, this.textShadow);
+            }
+
+            if (this.hint != null && displayed.isEmpty() && !this.isFocused()) {
+                graphics.text(this.font, this.hint, drawX, this.textY, color);
+            }
+
+            if (relHighlightPos != relCursorPos) {
+                int highlightX = this.textX + this.font.width(displayed.substring(0, relHighlightPos));
+                graphics.textHighlight(
+                        Math.min(cursorX, this.getX() + this.width),
+                        this.textY - 1,
+                        Math.min(highlightX - 1, this.getX() + this.width),
+                        this.textY + 10,
+                        true
+                );
+            }
+
+            if (showCursor) {
+                if (insert) {
+                    TextCursorUtils.extractInsertCursor(graphics, cursorX, this.textY, color, 10);
+                } else {
+                    TextCursorUtils.extractAppendCursor(graphics, this.font, cursorX, this.textY, color, this.textShadow);
+                }
+            }
+
+            if (this.isMouseOver(mouseX, mouseY)) {
+                graphics.requestCursor(this.editable ? CursorTypes.IBEAM : CursorTypes.NOT_ALLOWED);
+            }
+        }
+    }
+
     public abstract static class WithTooltip extends Widget
     {
         protected final WidgetTooltipHolder tooltip = new WidgetTooltipHolder();
@@ -856,7 +1325,8 @@ public class KeyDiag extends Screen
 
     }
 
-    private static abstract class ListWidget<E extends ListWidget.Entry> extends Widget implements Reloadable {
+    private static abstract class ListWidget<E extends ListWidget.Entry> extends Panel implements GuiEventListener, Reloadable
+    {
         private static final int SCROLLBAR_WIDTH = 6;
         private static final int SCROLLER_MIN_HEIGHT = 32;
         private static final int COL_SCROLLBAR_TRACK = 0xC0000000;
