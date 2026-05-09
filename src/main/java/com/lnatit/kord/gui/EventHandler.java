@@ -53,8 +53,7 @@ public class EventHandler
         @Override
         public void setWidth(int width) {
             super.setWidth(width);
-            AbstractWidget last = this.children.getLast().widget();
-            last.setWidth(last.getWidth() - EXTRA_PADDING_X - BUTTON_SIZE);
+            this.children.getLast().widget().setWidth(Button.DEFAULT_WIDTH - EXTRA_PADDING_X - BUTTON_SIZE);
             this.button.setY(this.getY() + EXTRA_PADDING_Y);
             this.button.setX(this.getX() + width - BUTTON_SIZE);
         }

@@ -145,15 +145,14 @@ public class KeyDiag extends Screen
     {
         public static final int BACKGROUND_COLOR = 0xFF101010;
 
-        // TODO
-        public static final Identifier EXIT_DEFAULT = Kord.id("textures/gui/exit_default.png");
-        public static final Identifier EXIT_SELECTED = Kord.id("textures/gui/exit_selected.png");
-        public static final Identifier REFRESH_DEFAULT = Kord.id("textures/gui/refresh_default.png");
-        public static final Identifier REFRESH_SELECTED = Kord.id("textures/gui/refresh_selected.png");
-        public static final Identifier RELOAD_DEFAULT = Kord.id("textures/gui/reload_default.png");
-        public static final Identifier RELOAD_SELECTED = Kord.id("textures/gui/reload_selected.png");
-        public static final Identifier SETTINGS_DEFAULT = Kord.id("textures/gui/settings_default.png");
-        public static final Identifier SETTINGS_SELECTED = Kord.id("textures/gui/settings_selected.png");
+        public static final Identifier EXIT_DEFAULT = Kord.id("widget/exit_default");
+        public static final Identifier EXIT_SELECTED = Kord.id("widget/exit_selected");
+        public static final Identifier REFRESH_DEFAULT = Kord.id("widget/refresh_default");
+        public static final Identifier REFRESH_SELECTED = Kord.id("widget/refresh_selected");
+        public static final Identifier RELOAD_DEFAULT = Kord.id("widget/reload_default");
+        public static final Identifier RELOAD_SELECTED = Kord.id("widget/reload_selected");
+        public static final Identifier SETTINGS_DEFAULT = Kord.id("widget/settings_default");
+        public static final Identifier SETTINGS_SELECTED = Kord.id("widget/settings_selected");
 
         public static final Component EXIT_MSG = Component.translatable("gui.kord.exit");
         public static final Component SETTINGS_MSG = Component.translatable("gui.kord.settings");
